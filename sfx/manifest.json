@@ -1,0 +1,92 @@
+[
+  {
+    "name": "ui-select-tick",
+    "seconds": 1,
+    "prompt": "Short soft wooden tick, like a fingertip tapping the edge of a playing card.",
+    "event": "select"
+  },
+  {
+    "name": "card-select-snap",
+    "seconds": 1,
+    "prompt": "A single playing card snapped lightly against a felt card table.",
+    "event": "select"
+  },
+  {
+    "name": "chip-select-click",
+    "seconds": 1,
+    "prompt": "A small plastic game chip clicking once on a wooden table.",
+    "event": "select"
+  },
+  {
+    "name": "card-play-slide",
+    "seconds": 1,
+    "prompt": "A playing card sliding across green felt and coming to a stop.",
+    "event": "card"
+  },
+  {
+    "name": "card-place-thump",
+    "seconds": 1,
+    "prompt": "A playing card placed firmly onto a table with a soft paper thump.",
+    "event": "card"
+  },
+  {
+    "name": "card-flip-snap",
+    "seconds": 1,
+    "prompt": "A playing card flipped face-up with a quick crisp snap.",
+    "event": "card"
+  },
+  {
+    "name": "deck-draw-whoosh",
+    "seconds": 1,
+    "prompt": "A single card drawn quickly from the top of a deck, soft paper whoosh.",
+    "event": "draw"
+  },
+  {
+    "name": "deck-draw-slide",
+    "seconds": 1,
+    "prompt": "A card pulled slowly off a deck with a dry paper sliding sound.",
+    "event": "draw"
+  },
+  {
+    "name": "deck-tap-draw",
+    "seconds": 2,
+    "prompt": "A card deck tapped once on the table followed by one card being drawn.",
+    "event": "draw"
+  },
+  {
+    "name": "wild-eight-chime",
+    "seconds": 2,
+    "prompt": "A bright magical chime accent for playing a wild card, shimmering and short.",
+    "event": "action"
+  },
+  {
+    "name": "action-whoosh-shimmer",
+    "seconds": 2,
+    "prompt": "A quick airy whoosh with a shimmering sparkling tail, like a spell cast.",
+    "event": "action"
+  },
+  {
+    "name": "action-zap-pop",
+    "seconds": 1,
+    "prompt": "A short cartoonish electric zap ending in a small pop.",
+    "event": "action"
+  },
+  {
+    "name": "win-fanfare-brass",
+    "seconds": 3,
+    "prompt": "A short triumphant brass fanfare burst celebrating a round victory.",
+    "event": "win"
+  },
+  {
+    "name": "win-chime-arpeggio",
+    "seconds": 2,
+    "prompt": "A rising happy chime arpeggio, cheerful and bright.",
+    "event": "win"
+  },
+  {
+    "name": "win-applause-brief",
+    "seconds": 3,
+    "prompt": "A small crowd giving a brief warm applause swell.",
+    "event": "win"
+  }
+]
