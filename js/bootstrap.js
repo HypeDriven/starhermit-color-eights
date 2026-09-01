@@ -1,11 +1,15 @@
-/* Color Eights — module loader (browser). */
-import '../vendor/three.module.js';
-import './rules.js';
-import './content.js';
-import './session.js';
-import './store.js';
-import './audio.js';
-import './platform.js';
-import './render.js';
-import './ui.js';
-import './game.js';
+/* Color Eights — ordered module loader (browser). */
+import * as THREE from '../vendor/three.module.js';
+
+// The existing game modules expose a small browser-global API. Static imports
+// would evaluate render.js before this assignment, so load them in order.
+window.THREE = THREE;
+await import('./rules.js');
+await import('./content.js');
+await import('./session.js');
+await import('./store.js');
+await import('./audio.js');
+await import('./platform.js');
+await import('./render.js');
+await import('./ui.js');
+await import('./game.js');
