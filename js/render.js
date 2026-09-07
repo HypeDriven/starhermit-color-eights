@@ -35,16 +35,19 @@
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
     scene = new THREE.Scene();
+    scene.background = new THREE.Color('#160a0c');
     camera = new THREE.PerspectiveCamera(45, 16 / 9, 0.1, 100);
+    camera.position.set(0, 4.5, 9);
 
     const amb = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(amb);
     const dir = new THREE.DirectionalLight(0xfff2e0, 1.4);
     dir.position.set(-6, 8, -3);
     scene.add(dir);
+    keyLight = dir;
 
     // table + floor
-    const tableMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#5a2320'), roughness: 0.9 });
+    tableMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#5a2320'), roughness: 0.9 });
     const tableMesh = new THREE.Mesh(tableGeo, tableMat);
     tableMesh.position.y = -1.4;
     scene.add(tableMesh);
@@ -54,11 +57,36 @@
       const mesh = new THREE.Mesh(cardGeo, makeCardMaterial('#ffffff'));
       mesh.visible = false;
       scene.add(mesh);
-      cardMeshes.push({ mesh });
+      cardMeshes.push({ mesh, color: '#ffffff' });
     }
 
     resize();
     return renderer;
+  }
+
+  let keyLight = null;
+  let tableMat = null;
+
+  // Apply a content theme (CEContent.THEMES entry) to the scene.
+  function applyTheme(theme) {
+    if (!theme || !scene) return;
+    scene.background = new THREE.Color(theme.fog || '#160a0c');
+    if (tableMat && theme.felt) tableMat.color.set(theme.felt);
+    if (keyLight && theme.key) keyLight.color.set(theme.key);
+  }
+
+  /* ---------------- render loop ---------------- */
+  let rafId = null;
+  function frame() {
+    rafId = global.requestAnimationFrame(frame);
+    if (!renderer || !scene || !camera) return;
+    if (global.document && global.document.hidden) return; // hidden tabs idle
+    renderer.render(scene, camera);
+  }
+  function start() { if (rafId == null && renderer) rafId = global.requestAnimationFrame(frame); }
+  function stop() {
+    if (rafId != null && global.cancelAnimationFrame) global.cancelAnimationFrame(rafId);
+    rafId = null;
   }
 
   function setQuality(tier) { qualityTier = tier || 'auto'; }
@@ -109,9 +137,42 @@
     for (const c of cardMeshes) { if (c.mesh.visible) { c.mesh.visible = false; } }
   }
 
+  function setMeshColor(entry, hex) {
+    if (entry.color === hex) return;
+    entry.mesh.material.dispose();
+    entry.mesh.material = makeCardMaterial(hex || '#ffffff');
+    entry.color = hex || '#ffffff';
+  }
+
+  // Sync the 3D table to a rules snapshot: discard top at center, human hand
+  // fanned along the front edge. colorFor(card) -> hex string.
+  function syncState(state, colorFor) {
+    clearCards();
+    if (!state) return;
+    let i = 0;
+    const top = state.discardPile[state.discardPile.length - 1];
+    if (top && cardMeshes[0]) {
+      const m = cardMeshes[i++];
+      m.mesh.visible = true;
+      m.mesh.position.set(0, -0.4, 0);
+      m.mesh.rotation.set(0, 0, 0);
+      setMeshColor(m, colorFor ? colorFor(top) : '#ffffff');
+    }
+    const hand = (state.players[0] && state.players[0].hand) || [];
+    const positions = layoutPositions(hand.length, 0, -2.4, CARD_W * 1.05);
+    for (let k = 0; k < positions.length && i < cardMeshes.length; k++, i++) {
+      const m = cardMeshes[i];
+      m.mesh.visible = true;
+      m.mesh.position.set(positions[k][0], positions[k][1], 0.5);
+      m.mesh.rotation.set(0, 0, 0);
+      setMeshColor(m, colorFor ? colorFor(hand[k]) : '#ffffff');
+    }
+  }
+
   global.CERender = {
     init, setQuality, getRenderScale, isReducedMotion, hasPostFx, resize,
-    setTableLight, layoutPositions, placeCards, clearCards,
+    setTableLight, layoutPositions, placeCards, clearCards, syncState, applyTheme,
+    start, stop,
     CARD_W, CARD_H,
     _three: THREE, _renderer: () => renderer, _scene: () => scene, _camera: () => camera,
   };

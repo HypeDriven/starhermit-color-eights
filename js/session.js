@@ -186,6 +186,17 @@
       };
     }
 
+    function pause() {
+      // Solo simulation halts: cancel pending AI move and turn timer.
+      if (aiHandle != null) { session.canceler(aiHandle); aiHandle = null; }
+      stopTurnTimer();
+    }
+    function resume() {
+      if (session.finished) return;
+      scheduleAI();
+      armTurnTimer();
+    }
+
     session.on = on;
     session.dispatch = dispatch;
     session.undo = undo;
@@ -195,6 +206,8 @@
     session.snapshot = snapshot;
     session.stopTurnTimer = stopTurnTimer;
     session.scheduleAI = scheduleAI;
+    session.pause = pause;
+    session.resume = resume;
     session.isHumanTurn = function () {
       if (state.pendingColorChoice) return state.players[state.pendingColorChoice.player].id === humanId;
       return state.phase === 'active' && state.players[state.currentPlayer].id === humanId;

@@ -62,8 +62,10 @@
   };
   function loadSettings() {
     const data = unwrap(get('settings', null), SETTINGS_VERSION);
-    const merged = mergeDeep(structuredClone ? structuredClone(DEFAULT_SETTINGS) : JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), data || {});
-    return merged;
+    const clone = typeof structuredClone === 'function'
+      ? structuredClone(DEFAULT_SETTINGS)
+      : JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+    return mergeDeep(clone, data || {});
   }
   function saveSettings(s) { return set('settings', wrap(SETTINGS_VERSION, s)); }
 

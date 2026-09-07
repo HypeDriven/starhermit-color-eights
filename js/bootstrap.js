@@ -13,3 +13,4 @@ await import('./platform.js');
 await import('./render.js');
 await import('./ui.js');
 await import('./game.js');
+await import('./app.js');

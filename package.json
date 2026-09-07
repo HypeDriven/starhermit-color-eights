@@ -1,0 +1,13 @@
+{
+  "name": "color-eights",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/rules.test.mjs",
+    "test:e2e": "node tests/e2e.mjs",
+    "test:smoke": "node tests/smoke-screens.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.62.1"
+  }
+}

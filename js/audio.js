@@ -7,7 +7,8 @@
   let masterGain = null, sfxGain = null, musGain = null, ambGain = null;
   let muted = false;
   let musicOn = false;
-  let musicTimer = null;
+  let musicNodes = []; // live oscillator/gain nodes of the pad loop
+  const busVolumes = { music: 0.6, effects: 0.8, ambience: 0.5 };
 
   // Authored sample SFX (sfx/<name>.opus), mapped from events via sfx/manifest.json.
   // Samples are lazy-fetched/decoded after the user-gesture unlock (ensureCtx);
@@ -94,6 +95,7 @@
       sfxGain = ctx.createGain(); sfxGain.connect(masterGain);
       musGain = ctx.createGain(); musGain.connect(masterGain);
       ambGain = ctx.createGain(); ambGain.connect(masterGain);
+      applyBusVolumes();
     }
     return ctx;
   }
@@ -123,26 +125,45 @@
     }
   }
 
+  function applyBusVolumes() {
+    if (!ctx) return;
+    sfxGain.gain.value = muted ? 0 : busVolumes.effects;
+    musGain.gain.value = muted ? 0 : busVolumes.music;
+    ambGain.gain.value = muted ? 0 : busVolumes.ambience;
+  }
+  function setVolume(bus, v) {
+    if (!BUSES.includes(bus)) return;
+    busVolumes[bus] = Math.max(0, Math.min(1, Number(v) || 0));
+    applyBusVolumes();
+  }
+
   function startMusic() {
-    if (musicOn || muted) return;
+    if (musicOn) return;
     musicOn = true;
     const c = ensureCtx();
+    applyBusVolumes();
     // simple ambient pad loop
-    [261.63, 329.63].forEach((f, i) => {
+    musicNodes = [261.63, 329.63].map((f, i) => {
       const o = c.createOscillator(), g = c.createGain();
       o.type = 'sine'; o.frequency.value = f;
       g.gain.value = 0.08 + i * 0.02;
       o.connect(g); g.connect(musGain);
       o.start();
+      return { o, g };
     });
-    musicTimer = { freq: [261.63, 329.63] };
   }
 
-  function stopMusic() { musicOn = false; if (musicTimer) { musicTimer.freq.forEach(() => {}); musicTimer = null; } }
+  function stopMusic() {
+    musicOn = false;
+    for (const n of musicNodes) {
+      try { n.g.gain.setTargetAtTime(0, ctx.currentTime, 0.05); n.o.stop(ctx.currentTime + 0.2); } catch (e) {}
+    }
+    musicNodes = [];
+  }
 
   global.CEAudio = {
-    BUSES, ensureCtx, playSfx, startMusic, stopMusic,
-    setMuted(m) { muted = !!m; }, isMuted() { return muted; },
+    BUSES, ensureCtx, playSfx, startMusic, stopMusic, setVolume,
+    setMuted(m) { muted = !!m; applyBusVolumes(); }, isMuted() { return muted; },
     isPlaying: () => musicOn,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

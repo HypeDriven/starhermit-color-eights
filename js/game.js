@@ -59,7 +59,12 @@
   }
 
   function isFinished() { const st = state(); return !!st && st.phase === 'finished'; }
-  function winnerName() { const st = state(); if (!st || !st.winner) return null; return R.cardLabel ? '' : ''; }
+  function winnerName() {
+    const st = state();
+    if (!st || !st.winner) return null;
+    const p = st.players.find(pl => pl.id === st.winner);
+    return p ? p.name : null;
+  }
 
   // score: sum of remaining hand values (winner has none)
   function totalScore() { const st = state(); if (!st || !st.scores) return 0; return st.scores.total; }

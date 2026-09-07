@@ -260,13 +260,11 @@
   }
 
   /* ---------------- command application ---------------- */
-  let cmdSeqGuard = 0;
   function applyCommand(state, command) {
     // Returns { state, events } or { error, reason, events: [] }. Input state is not mutated.
     if (!command || typeof command !== 'object') return { error: true, reason: 'malformed-command', events: [] };
     if (!command.id || typeof command.id !== 'string') return { error: true, reason: 'missing-command-id', events: [] };
     if (state.phase !== 'active') return { error: true, reason: 'round-finished', events: [] };
-    if (++cmdSeqGuard > 100000) return { error: true, reason: 'internal-guard', events: [] };
 
     const next = cloneState(state);
     const pid = command.player;

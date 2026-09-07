@@ -50,3 +50,66 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0c0a0e; f
 
 /* live region (visually hidden) */
 .ce-live { position:absolute; left:-9999px; top:auto; width:1px;height:1px; overflow:hidden; }
+
+/* ---------- menus ---------- */
+.ce-menu { display:flex; justify-content:center; overflow:auto; background:linear-gradient(180deg,#0c0a0e88,#0c0a0e66); }
+.ce-menu-inner { display:flex; flex-direction:column; gap:.7rem; align-items:stretch; width:min(92vw,460px); padding:6vh 0 8vh; }
+.ce-menu-inner.ce-wide { width:min(94vw,880px); }
+.ce-menu-inner h1 { font-size:clamp(26px,4.5vw,40px); font-weight:700; text-align:center; }
+.ce-title-big { letter-spacing:.02em; }
+.ce-tagline { text-align:center; color:#d9cec2; font-size:clamp(14px,2.2vw,18px); line-height:1.5; max-width:70ch; align-self:center; }
+.ce-menu-inner .ce-btn { min-height:44px; }
+.ce-btn-primary { background:#ff7a4d; color:#1c0d08; font-weight:700; }
+.ce-btn-primary:hover:not(:disabled){ background:#ff9d6b; }
+
+.ce-journey-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:.5rem; }
+.ce-stage-btn { text-align:left; font-size:clamp(13px,1.8vw,16px); min-height:44px; }
+.ce-mastery { border:1px solid #ffcf4d88; }
+.ce-lesson-btn { min-height:44px; }
+.ce-challenge-row { display:flex; flex-direction:column; gap:.2rem; }
+.ce-challenge-desc { color:#cfc4b8; font-size:clamp(13px,1.8vw,15px); max-width:70ch; }
+
+.ce-field { display:flex; justify-content:space-between; align-items:center; gap:.8rem; padding:.5rem 0; }
+.ce-field select, .ce-field input[type="checkbox"] { min-width:44px; min-height:44px; font-size:1rem; }
+
+/* ---------- game screen ---------- */
+.ce-game { display:flex; flex-direction:column; }
+.ce-main { flex:1; display:flex; flex-direction:column; justify-content:space-between; }
+.ce-lesson-banner { text-align:center; color:#ffe9c9; font-size:clamp(14px,2.2vw,18px); max-width:70ch; margin:0 auto .4rem; padding:0 .8rem; line-height:1.5; }
+.ce-color-chip { display:flex; align-items:center; gap:.45rem; font-size:clamp(14px,2.2vw,18px); }
+.ce-chip-dot { display:inline-flex; width:1.6em; height:1.6em; border-radius:50%; background:var(--chip,#888); color:#0008; align-items:center; justify-content:center; font-weight:700; }
+.ce-draw-pile { border:none; border-radius:.6rem; cursor:pointer; background:#2c2433; color:#fff; font-size:clamp(13px,2vw,16px); font-weight:600; }
+.ce-draw-pile:hover:not(:disabled){ background:#3d3247; }
+.ce-draw-pile:disabled { opacity:.45; cursor:not-allowed; }
+.ce-discard-top { border-radius:.6rem; display:flex; align-items:center; justify-content:center; text-align:center; padding:.2rem; color:#fff; font-size:clamp(11px,1.6vw,14px); font-weight:700; text-shadow:0 1px 2px #000a; }
+.ce-card-btn { color:#fff; font-weight:700; text-shadow:0 1px 2px #000a; min-width:44px; min-height:44px; }
+.ce-card-btn.ce-playable { box-shadow:0 0 0 2px #ffffffcc, 0 4px 10px #0007; transform:translateY(-4px); }
+.ce-card-btn.ce-hinted { box-shadow:0 0 0 3px #ffcf4d, 0 4px 12px #0009; }
+.ce-action-row { display:flex; justify-content:center; gap:.5rem; padding-bottom:1rem; flex-wrap:wrap; }
+.ce-action-row .ce-btn { min-height:44px; }
+
+/* ---------- overlays ---------- */
+.ce-panel { background:#17121c; border-radius:1rem; padding:1.4rem; display:flex; flex-direction:column; gap:.6rem; }
+.ce-panel .ce-btn { min-height:44px; }
+.ce-color-panel { align-items:center; }
+.ce-color-row { display:flex; gap:.6rem; flex-wrap:wrap; justify-content:center; }
+.ce-color-btn { min-width:110px; min-height:56px; color:#fff; font-weight:700; text-shadow:0 1px 2px #000a; }
+.ce-settings-row input[type="range"] { flex:1; max-width:240px; min-height:44px; }
+.ce-settings-row select { min-height:44px; font-size:1rem; }
+.ce-breakdown { list-style:none; display:flex; flex-direction:column; gap:.3rem; color:#e9dfd5; font-size:clamp(13px,2vw,16px); line-height:1.45; }
+.ce-goal-line { color:#ffcf4d; font-weight:600; text-align:center; }
+
+/* ---------- accessibility variants ---------- */
+.ce-btn:focus-visible, .ce-card-btn:focus-visible, select:focus-visible, input:focus-visible {
+  outline:3px solid #ffcf4d; outline-offset:2px;
+}
+.ce-contrast .ce-btn { background:#ffffff3d; border:1px solid #fff; }
+.ce-contrast .ce-btn-primary { background:#ffcf4d; color:#000; }
+.ce-contrast .ce-tagline, .ce-contrast .ce-draw-count { color:#fff; }
+.ce-large-text { font-size:120%; }
+.ce-reduced-motion * { transition:none !important; animation:none !important; }
+
+@media (max-width:719px) {
+  .ce-menu-inner { padding-top:4vh; }
+  .ce-hand { flex-wrap:wrap; }
+}
