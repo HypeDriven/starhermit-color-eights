@@ -121,6 +121,15 @@
       case 'draw': blip(330, 0.15); break;
       case 'action': blip(520, 0.22); break;
       case 'win': blip(784, 0.4); break;
+      case 'lose': blip(392, 0.35, 'triangle', 0.15); break;
+      case 'invalid': blip(200, 0.12, 'square', 0.08); break;
+      case 'undo': blip(300, 0.15); break;
+      case 'turn': blip(880, 0.15, 'sine', 0.15); break;
+      case 'penalty': blip(260, 0.25, 'triangle'); break;
+      case 'onecard': blip(700, 0.1); break;
+      case 'hint': blip(990, 0.12, 'sine', 0.12); break;
+      case 'achievement': blip(1046, 0.5, 'sine', 0.18); break;
+      case 'shuffle': blip(220, 0.2, 'triangle', 0.12); break;
       default: blip(440, 0.15);
     }
   }

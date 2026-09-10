@@ -1,262 +1,269 @@
-# Color Eights — Product and Game Specification
+# Color Eights — Game Design Document (running spec)
+
+**Status:** shipped; this document describes the game as it runs today.
+**Pitch:** a shedding card game in a lamp-lit lounge — match the discard by color or rank, weaponize Skip, Reverse, Draw Two and Wilds, and be the first to empty your hand.
+**Genre:** turn-based card game, solo versus 1–3 deterministic AI opponents.
+**Session length:** one round is 2–6 minutes (2 players) to 8–12 minutes (4 players, stacking).
+**Platforms:** desktop and mobile browsers (portrait and landscape), served as static files.
+**Rendering:** Three.js backdrop (table, discard, fanned hand as lit slabs) under a semantic DOM layer that carries every interactive control.
 
-**Document status:** design specification only; no implementation is included.  
-**Game index:** 81  
-**Genre:** Turn-based card game  
-**Players:** 2–4 players depending on ruleset, plus practice AI  
-**Targets:** desktop browsers, mobile browsers, landscape and portrait where practical  
-**Rendering direction:** Three.js-first presentation with a fully usable semantic HTML interface layer
+## 1. Overview and file map
 
-## 1. Product vision
+| Path | Responsibility |
+|---|---|
+| `index.html` | Shell: `#ce-root` with the `#ce-canvas` (aria-hidden) and the `#ce-ui` screen element; loads `js/bootstrap.js`. |
+| `js/bootstrap.js` | Imports `vendor/three.module.js`, sets `window.THREE`, then imports the modules in dependency order. |
+| `js/rules.js` | `CERules`: pure deterministic engine — deck, legality, command application, scoring, AI, serialization, replay. No DOM, no Date, no Math.random. |
+| `js/content.js` | `CEContent`: 5 themes, 4 color-vision palettes, 40 Journey stages, 7 lessons, daily generator, 5 challenges, offline validators. |
+| `js/session.js` | `CESession`: command dispatch with idempotent ids, undo stack, hint, AI scheduling, turn timer, snapshots, pause/resume. |
+| `js/store.js` | `CEStore`: localStorage documents (settings v2, progress v2, profile, resume snapshot) with FNV-1a checksums. |
+| `js/audio.js` | `CEAudio`: WebAudio buses, sample playback from `sfx/manifest.json`, synth fallbacks, two-tone pad music. |
+| `js/platform.js` | `CEPlatform`: token holders and server-time offset (currently a local stub, offset 0). |
+| `js/render.js` | `CERender`: Three.js scene, pooled card meshes, theme application, resize framing, idle-when-hidden loop. |
+| `js/ui.js` | `CEUI`: screen swapping, element helper, polite live region. |
+| `js/game.js` | `CEGame`: thin facade over the session for the human seat (legal actions, play/draw/chooseColor). |
+| `js/app.js` | `CEApp`: boot, all screens and overlays, event → SFX/announcement mapping, progress and achievements. |
+| `css/style.css` | Dark lounge theme, responsive layout, accessibility variants, illustration styling. |
+| `assets/` | `key-art.webp` (title), `results-win.webp`, `results-lose.webp`. |
+| `sfx/` | 24 Opus clips, `manifest.txt` (canonical), `manifest.json` (loader + generator input), `manifest.md` (generated). |
+| `server.js` | Local static host (`PORT` env, default 8080); refuses `tests/`, `tools/`, `node_modules/` and dotfiles. |
+| `tests/rules.test.mjs` | 39 engine and content tests (`npm test`). |
+| `tests/e2e.mjs` | Playwright playthrough through the visible UI at desktop and mobile viewports (`npm run test:e2e`). |
+| `tests/smoke-screens.mjs` | Targeted screen smoke: journey, save/resume, lesson gating, settings, daily, challenges, keyboard. |
+| `starhermit.txt` | `name=Color Eights`, `launch=index.html`, `owner=…`, `server=server.js`, `cover=coverart.png`. |
+| `coverart.png`, `icon.png`, `favicon.svg` | Store art (1200×675), 256×256 icon, SVG favicon of two tilted cards. |
+| `vendor/three.module.js` | Three.js (MIT). |
+| `LICENSE.md` | PolyForm Noncommercial 1.0.0. |
+
+## 2. Vision and design pillars
+
+1. **Every legal move is visible before you commit.** Playable cards lift 4 px with a white ring; unplayable ones are disabled and their `aria-label` says why (`explainInvalid`). Rules in: hints and lessons use the same `legalActions` API as play. Rules out: hidden "gotcha" rejections, hover-only affordances.
+2. **Color is a shape, too.** Ember ◆, Tide ≈, Leaf ♣, Sol ☀, Wild ★. Every card, chip and chooser button carries the glyph, and four palettes (standard, contrast, deuteranopia, tritanopia) swap hues without touching rules. Rules out: any mechanic readable only by hue.
+3. **One deck, one seed, one truth.** A round is fully determined by `config.seed` plus the ordered command list; replays hash every turn. Rules in: seeded dailies, journey stages with fixed seeds, verifiable replays. Rules out: cosmetic randomness leaking into outcomes (the AI's "decor" stream is copied, never mutated).
+4. **Teach one card at a time.** Lessons rig a hand and accept only the required action; Journey adds Skip, Reverse, Draw Two, Wild and Wild Draw Four in that order with a mastery stage after each group. Rules out: the full 104-card deck on stage 1.
+5. **The lounge is warm even when you lose.** Loss plays a soft woodwind descent and a calm blue still-life, never a buzzer; the score breakdown explains exactly which cards cost the opponents. Rules out: punishment audio, streak-loss guilt, timers on unranked play.
 
-Color Eights is a game in which players match the discard by color or rank, use action cards, and empty the hand first. Its signature setting is a vivid card lounge with color-coded table lighting. The product should feel immediately understandable, responsive within one input, and polished enough that the board or playfield itself is the visual hero. Sessions should begin quickly, make the next useful action obvious without solving the game for the player, and end with a clear explanation of score and progress.
+## 3. Player experience
+
+**Target player:** someone who knows a shedding card game from family tables and wants a quick, fair solo round on a phone or laptop; secondary, a completionist who wants forty authored stages with goals.
+
+**First 60 seconds.** The title shows the key art, the one-line rule ("Match the discard by color or rank. Empty your hand first.") and Practice as the highlighted primary button. Practice → Start round deals in one click with 2 players, medium AI. On the table the discard, the current-color chip and the "Your turn" label sit above the hand; playable cards are lifted and ringed, the rest greyed. If nothing is playable the Draw button is the only enabled control. A Hint button (H) outlines the best card in gold. Players who want instruction first pick Learn: seven lessons, each a rigged hand where only the required action is accepted and any other click announces the hint text and plays the "invalid" thud.
+
+**Session shape.** Deal (shuffle riffle) → 10–40 alternating turns, each acknowledged by a card slide or draw whoosh, with a bell on "your turn", knocks when anyone hits one card, and a flurry when a penalty lands → fanfare or soft descent → results with the score breakdown → Play again / Next stage / Back to menu.
 
-The experience must be original. Do not copy names, layouts, characters, iconography, writing, audio, progression maps, or level data from an existing title. Use an original visual language, original procedural assets, and internally authored content.
+**Emotional beat.** The pivot when a Wild or Draw Two flips the tempo — the color chip changes, the opponent count jumps, and the "one card left" knock lands — is what the game is built around.
 
-### Design pillars
+## 4. Core loop and rules contract
 
-1. **Readable before spectacular:** legal actions, hazards, selection, ownership, and goals remain legible with effects disabled.
-2. **One-input confidence:** every press, tap, drag, key, or pointer action gives immediate visual and sonic acknowledgment.
-3. **Short path to play:** a returning player reaches the primary playfield in at most two deliberate actions.
-4. **Fair mastery:** randomness is seeded and inspectable; outcomes never depend on hidden purchases or invisible stat boosts.
-5. **Scalable beauty:** the same art direction survives low-power mobile hardware and high-resolution desktop displays.
+All rules live in `js/rules.js` (`CERules`); the UI only dispatches commands through `CESession.dispatch`.
 
-## 2. Core game design
+**Deck** (`buildDeck`): per color (ember, tide, leaf, sol) two copies of ranks 1–9 and of Skip, Reverse, Draw Two = 96 cards, plus 4 Wild and 4 Wild Draw Four = **104 cards**. There is no rank 0; "eights" in the title is flavor — 8 is an ordinary rank. Stage/challenge configs may filter kinds (`allowedKinds`) or colors (`palette`).
 
-### Objective and rules contract
+**Setup** (`createGame`): `normalizeConfig` clamps `playerCount` 2–4, `handSize` 1–10 (default 7, capped so two cards remain), `moveLimit` 0/1–500, `turnTimerSec` 0/3–120, flags `stacking`, `drawToMatch`, `assists.{hint,undo}`. The rules RNG is mulberry32 seeded with FNV-1a of `'rules:' + seed`; a second `'decor:' + seed` stream is reserved for cosmetics. Deck is filtered, shuffled, dealt round-robin; the first discard is redrawn (reshuffle) if it is a Wild Draw Four; a plain Wild first card picks the starting color from the rules RNG. Seat 0 is always the human (`p0`, "You"); AI seats are Vex, Mira, Tallo.
 
-Match the discard by color or rank, use action cards, and empty the hand first.
+**Legal actions** (`legalActions(state, playerId)`): returns `{ok, actions}` or `{ok:false, reason}` with reasons `round-finished`, `unknown-player`, `not-your-turn`. During a pending color choice only `chooseColor` for the chooser. Otherwise:
+- `play` for each card where `cardMatches`: any Wild/Wild Draw Four; same color as `currentColor`; same rank as a number top card; same action kind as an action top card.
+- `draw` is always offered.
+- With `pendingDraw > 0` and `stacking` off: only `draw`. With `stacking` on, also `play` of Draw Two on Draw Two, Wild Draw Four on anything, Draw Two on Wild Draw Four if its color equals `currentColor`.
 
-The rules engine must represent legal actions independently from rendering. It must expose legal-action queries, deterministic resolution, serializable state, a monotonically increasing turn/tick number, and a terminal-state reason. Tutorials and hints call the same legal-action API used by play rather than duplicating rules.
+**Resolution order** (`applyCommand` → `doPlay`/`doDraw`/`doChooseColor`/`doResign` → `resolveCardEffects` → `finishTurn`): the input state is never mutated; malformed commands (`missing-command-id`, `unknown-command-type`, `invalid-color`, `card-not-in-hand`, `no-color-or-rank-match`, `must-draw-penalty`, `stacking-requires-draw-card`) return `{error, reason}`, increment `invalidCounts[player]` and are logged. On success `turnNumber` increments (monotonic tick).
+- Number card: `currentColor` = card color.
+- Skip: the next seat is skipped (`skipped` event), play moves to the seat after.
+- Reverse: `direction *= -1`; with 2 players it acts as a Skip (same player again).
+- Draw Two: `pendingDraw += 2`. Wild Draw Four: `pendingDraw += 4` after the color is chosen.
+- Wild played by a human without a `color` field: `pendingColorChoice` is set, the turn does not advance until `chooseColor`; AI wilds choose `bestColorFor` (majority color in hand) instantly.
+- Draw with a penalty pending: draws `pendingDraw` cards (`penaltyTaken`), resets it, turn passes. Draw without penalty: one card, or with `drawToMatch` up to 3 until one matches; **the turn passes either way** — a drawn playable card is played on a later turn.
+- Empty draw pile: `recycleDiscard` shuffles everything but the top discard back with the rules RNG.
+- `finishTurn`: `oneCardLeft` at hand size 1; hand size 0 ends the round (`empty-hand`); a human reaching `moveLimit` own turns ends the round with the lowest-value opponent hand as winner (`move-limit`); otherwise `currentPlayer` advances (`turnPassed`).
+- Resign (`Quit without saving` in pause): in solo the opponent with the lowest hand value wins (`resignation`).
 
-### Core loop
+**Scoring** (`finishRound`): the winner scores the sum of every other seat's remaining hand: numbers at face value, Skip/Reverse/Draw Two 20, Wild/Wild Draw Four 50 (`SCORE_VALUES`, `cardValue`). Worked example: You empty your hand while Vex holds Tide 7, Leaf Skip and a Wild → 7 + 20 + 50 = **77 points**, shown on the results screen as "Vex — 3 cards left, 77 points (Tide 7 7, Leaf Skip 20, Wild 50)". When an AI wins, the total still sums the losing hands (including yours) and is displayed, but only wins add to `progress.mastery.points`.
 
-The repeated loop is: **inspect the discard, play a matching or action card, resolve effects, draw if needed, and pass**. Input is locked only during the shortest non-interruptible resolution phase. Cosmetic animation may continue after the logical state is ready, but skip/fast-forward must settle every object into the exact deterministic end state.
+**Terminal states:** `phase: 'finished'` with `terminalReason` ∈ {`empty-hand`, `resignation`, `move-limit`} and `winner`. **Tie-break** (`rankResults`, API only): winner first, then fewer invalid actions, lower remaining hand value, then stable id.
 
-### Scoring and victory
+**AI** (`aiChoose`): easy picks a uniformly random legal action; medium prefers non-wild playable cards in its majority color; hard scores each play (card value, −30 for wilds unless the hand is ≤2, +60 for any disruptive card when the next seat has ≤2 cards, +5 for majority color) and takes the top. AI replies are scheduled 650 ms after the human move (+250 ms for hard) by `CESession.scheduleAI`.
 
-First empty hand wins; action stacking is a declared room option. Results show a component breakdown rather than one unexplained total. Store integers for score and simulation units; format values only in presentation. Ties use, in order: primary objective completion, fewer invalid actions, lower authoritative elapsed time, then stable session identifier.
+**Undo/hints** (`js/session.js`): `undo` is permitted only when `config.assists.undo` (Practice with the Undo assist box) and restores the serialized snapshot taken before the last human command (up to 32); it discards the replay envelope. `hint` returns the highest-value playable card (+2 if it matches the current color) or `draw`.
 
-### Modes
+**Replay** (`replayCreate/Append/Verify`): envelope holds schema 1, rules version 3, seed, config, players, initial hash, ordered commands and a state hash per command; verification rebuilds from the seed and rejects hash or result mismatches.
 
-- **Learn:** interactive lessons introduce one rule at a time and require the player to perform the action.
-- **Journey:** authored progression with gradually combined mechanics and periodic mastery stages.
-- **Daily:** one shared seed and ruleset per UTC day, synchronized to platform time.
-- **Practice:** selectable difficulty, restart, undo where rules permit, and no effect on competitive rating.
-- **Challenge:** constrained goals such as move limits, speed targets, altered layouts, or restricted tools.
-- **Hosted play:** private invitations and appropriate public matching, with reconnect and authoritative results.
+## 5. Modes and progression
 
-### Difficulty and content generation
+| Mode | Entry | Config | Assists | Progress written |
+|---|---|---|---|---|
+| Practice | Title → Practice → setup | 2–4 players, easy/medium/hard, Stacking, Draw-to-match, Undo; seed `practice-<time>` | hint + optional undo | stats, achievements |
+| Journey | Title → Journey → stage → intro overlay → Play | one of 40 authored stages (`CEContent.JOURNEY`), fixed seed `journey-<n>` | hint only | `journey[id] = {goalMet, best}` |
+| Daily Challenge | Title → Daily Challenge (starts immediately) | seed `daily:YYYY-MM-DD` (UTC date from `CEPlatform.serverNow()`), players 2 + h%3, stacking if h%3 = 0, draw-to-match if h%5 = 0, medium AI | none | `stats.dailyCompleted[date]` on a win |
+| Challenges | Title → Challenges → row | 5 authored (`CEContent.CHALLENGES`) | none | `challenges[id] = {completed, best}` |
+| Learn | Title → Learn → lesson | 7 rigged lessons (`CEContent.LESSONS`), gated input | lesson hint text | `tutorials[id]` |
 
-- Represent content as versioned data: identifier, seed, initial state, goals, allowed mechanics, par values, tutorial flags, and presentation theme.
-- Run offline validators to prove basic legality, reachable goals, bounded duration, and absence of soft locks. Logic puzzles additionally require a unique or explicitly accepted solution class.
-- Difficulty is measured from solution depth, branching factor, time pressure, motor precision, hidden information, and recovery options—not merely larger numbers.
-- Introduce one new concept in isolation, combine it with one known concept, then test mastery before adding another.
-- Daily seeds are immutable after publication. If content is defective, mark the day excluded from ranking rather than silently replacing it.
+**Journey curve.** Stages 1–4 numbers only against easy AI (stage 4 asks for a win in ≤24 own turns); 5–8 add Skip and a third seat, mastery *Tempo*; 9–12 Reverse, four seats, *Reckoning: Direction*; 13–16 Draw Two, then the stacking room option, mastery *Pressure* (score ≥ 60); 17–20 Wild, *Reckoning: Palette* (score ≥ 80); 21–24 Wild Draw Four and the full deck, mastery *The Works*; 25–28 win-without-drawing goals and hard AI; 29–32 turn timers 12 s → 8 s, mastery *Velocity*; 33–36 two-color decks and 10-card hands, *Endurance* (score ≥ 120); 37–40 hard AI, stacking, timers, mastery *Color Eights* (score ≥ 100). Goal types (`goalMet`): `win`, `win-turns`, `win-no-draw` (session `humanDraws` = 0), `score-min`. Themes rotate ember_lounge → tide_hall → verdant_room → solarium → midnight_neon by stage index. No stage is locked; ✓ marks a met goal.
 
-### Game-state model
+**Challenges.** *Twenty Turns* (3p, `moveLimit` 20), *Speed Lounge* (3p, 6 s timer; hesitation draws), *Two-Tone* (2p, ember+tide deck), *Perfect Flow* (2p, 8-card hand; the "no draws" rule is descriptive only — see Known limitations), *Avalanche* (4p, stacking, hard AI).
 
-`boot → title → profile-ready → mode-select → preparing → tutorial/countdown → active ↔ paused/reconnecting → resolving → results → progression`.
+**Achievements** (`ACHIEVEMENTS` in `app.js`, stored locally): `first-win`, `all-lessons`, `journey-mastery`, `streak-3`, `century` (100+ points in a round). Unlocks are idempotent, chime and are announced.
 
-Every transition has one owner and an explicit reason. Backgrounding pauses solo simulation. In hosted play, the authoritative clock continues where rules require it, while the returning client receives a fresh snapshot and a concise “while you were away” summary.
+## 6. Controls and interaction
 
-## 3. Interaction and user-interface design
+| Input | Desktop | Mobile | Feedback |
+|---|---|---|---|
+| Play a card | click a lifted card / Tab + Enter | tap | select tick → card slide or action chime; turn label updates; live region "You played …" |
+| Draw | click Draw (N) / **D** | tap Draw | draw whoosh; "You drew 1 card" |
+| Choose color (after a Wild) | click a color button / Tab + Enter | tap | mandatory overlay; "Color is now …" |
+| Hint | Hint button / **H** | tap Hint | gold outline pulse 1.6 s, sparkle, "Hint: play …" |
+| Undo | Undo button / **U** (Practice, assist on) | tap Undo | reverse swish, "Move undone" |
+| Pause | Pause button / **P** / **Esc** | tap Pause | overlay; AI timer and turn timer stop |
+| Close overlay | **Esc** (non-mandatory only) | tap Resume/Close | session resumes |
 
-### Information hierarchy
+Input locking: card and Draw buttons are `disabled` whenever the action is not in `legalActions`; during an AI turn every hand card is disabled; the color chooser is a mandatory overlay (Escape ignored). Double commits are prevented by per-command ids in `CESession` (duplicates return `{ok:true, duplicate:true}`), not by timers. The turn timer (challenge/journey speed stages) shows "(Ns)" in the turn label at render time and dispatches a draw for the human on expiry. Backgrounding the tab pauses AI and timers; returning resumes unless an overlay is open.
 
-1. **Primary:** playfield, current objective, legal interaction target, and immediate danger or turn state.
-2. **Secondary:** score/progress, remaining moves or time, opponent/party status where applicable.
-3. **Tertiary:** settings, social controls, cosmetics, help, and history.
+## 7. Screens and UI flow
 
-The Three.js canvas fills the game region but is never the only UI. Menus, text, forms, chat, settings, and assistive descriptions use semantic HTML over or beside the canvas. Maintain a single shared layout model so DOM labels align with projected Three.js targets.
+```
+boot ─► title ─┬► practice setup ─► game ─► results ─┬► game (Play again / Next stage / Next lesson)
+               ├► journey grid ─► stage intro (overlay) ─► game        └► title
+               ├► daily (direct) ─► game
+               ├► challenges list ─► game
+               ├► learn list ─► game (lesson banner) ─► lesson complete (overlay)
+               ├► settings (overlay)
+               └► Resume round (only when a saved snapshot is still active)
+game overlays: pause (Resume / Restart round / Settings / Save & quit to menu / Quit without saving),
+               color chooser (mandatory), lesson complete
+```
 
-### Responsive layouts
+`CEUI.setScreen` swaps `#ce-ui` between `ce-menu`, `ce-game` and `ce-boot`; overlays are appended inside the screen with `role="dialog"` and receive focus. If WebGL init throws, the boot screen shows a plain-text compatibility message and settings/progress stay intact.
 
-- **Wide desktop (≥1024 CSS px):** centered playfield, objective/progression rail on the left, contextual actions and social/status rail on the right. Maximum line length is 70 characters.
-- **Compact desktop/tablet:** playfield remains central; secondary rails collapse into drawers. Pointer hover may preview but never be required.
-- **Portrait mobile:** top safe-area status bar, square or perspective-fit playfield, bottom thumb-zone action tray, and sheet-based secondary panels. Never place critical controls under browser chrome or display cutouts.
-- **Landscape mobile:** reserve a narrow status rail; preserve at least 44×44 CSS-pixel targets and 8-pixel separation.
-- React to resize, orientation, device-pixel-ratio, safe-area insets, virtual keyboard, and visibility changes without losing input or restarting the round.
+**Layout.** Menus are a centered column `min(92vw, 460px)` (journey grid `min(94vw, 880px)`, `auto-fill minmax(160px,1fr)`), scrollable, with 6–8 vh top padding. The game screen is a column: header (mode title, Pause), table info (turn label, color chip, opponent card counts), draw pile + discard top (`clamp(58px,10vw,74px)` wide), the hand row (`clamp(50px,9vw,64px)` cards, wraps below 720 px), then the action row. Every button is at least 44×44 CSS px. Below 560 px viewport height the key art shrinks to 96 px and results art hides; below 480 px (landscape phones) the table column tightens its spacing, cards shrink to 14 vh and the game screen scrolls instead of clipping. Nothing critical sits under browser chrome: the viewport uses `viewport-fit=cover`, the canvas is behind the DOM, and menus scroll. Must never be cut off: the turn label, the color chip, the Draw button, every hand card, the Pause button, the results headline and breakdown.
 
-### Screens and overlays
+## 8. Art direction
 
-- **Title/home:** Play is dominant; daily challenge, journey progress, and profile are one level below.
-- **Mode setup:** show rules, expected duration, player count, assists, and whether the result is ranked before commitment.
-- **Play HUD:** objective, progress, current actor/state, pause, and only context-relevant actions.
-- **Pause/settings:** resume first; audio, graphics, controls, accessibility, help, and leave are clearly separated.
-- **Results:** outcome headline, score breakdown, progress, achievements, comparison, replay/retry, and next recommended action.
-- **Help:** visual rule cards generated from current control mappings and representative legal states.
-- Lobby, roster, readiness, invitation, reconnect, result, and report states are first-class screens.
+**Palette (from `css/style.css`, `rules.js`, `content.js`).** Room `#0c0a0e`; text `#f4efe9`; muted text `#cfc7bd` / `#dcd3ca` / `#d9cec2`; turn label `#ffd9c8`; primary button `#ff7a4d` (hover `#ff9d6b`, contrast mode `#ffcf4d`); focus ring and hint outline `#ffcf4d`; panels `#17121c`; draw pile `#2c2433` (hover `#3d3247`); overlay scrim `#0c0a0ecc`; wild cards `#9a93a3`. Card colors: Ember `#e1483c`, Tide `#2f7fe0`, Leaf `#37a24a`, Sol `#e8b32a`; contrast palette `#d42a1e` / `#0067c4` / `#0f8a3c` / `#e8a000`; deuteranopia `#c44e52` / `#4c72b0` / `#55a868` / `#ccb974`; tritanopia `#e1483c` / `#17becf` / `#2ca02c` / `#bcbd22`.
 
-### Input
+| Theme | felt | fog/background | accent | used by |
+|---|---|---|---|---|
+| Ember Lounge (default) | `#5a2320` | `#160a0c` | `#ff7a4d` | title, practice, daily, challenges, lessons, stages 5,10,… |
+| Tide Hall | `#16304a` | `#081420` | `#4db2ff` | stages 1,6,11,… |
+| Verdant Room | `#1d4023` | `#0a180e` | `#63d97e` | stages 2,7,12,… |
+| Solarium | `#4a3a16` | `#181206` | `#ffcf4d` | stages 3,8,13,… |
+| Midnight Neon | `#241a3a` | `#0c0818` | `#b44dff` | stages 4,9,14,… |
 
-- Pointer/touch: raycast only against explicit interaction layers; use pointer capture for drags; cancel safely on lost capture.
-- Touch: distinguish tap, drag, and camera gesture by distance/time thresholds; never require multi-touch for core play.
-- Keyboard: directional navigation among legal targets, confirm, cancel, pause, undo/hint where valid, and camera reset.
-- Gamepad: focus navigation, primary/secondary actions, pause, and remappable axes/buttons.
-- Prevent accidental double commits with action identifiers, not arbitrary long debounce timers. Provide visible drag origin, target preview, and invalid-action explanation.
+`CERender.applyTheme` sets scene background (fog), felt color and key-light color; the DOM keeps the ember accent in every theme.
 
-### Accessibility
+**Shape language.** Rounded rectangles everywhere (buttons `.7rem`, cards `.6rem`, panels `1rem`); cards are flat color slabs with a white glyph + label and a 1-px text shadow; the 3D table is a wide cylinder under a single warm directional key light and ambient fill. The hero of the game screen is the hand row — lifted playable cards against the dim felt.
 
-- Full keyboard operation and visible focus; DOM equivalents for canvas controls; headings and live regions for objective, turn, score, errors, and results.
-- Color is reinforced by shape, texture, icon, or label. Include contrast-safe and common color-vision palettes.
-- Reduced-motion mode removes camera swoops, shake, parallax, rapid particles, and large scaling while preserving event timing.
-- Independent sliders for music, effects, ambience, and voice; captions/text cues for meaningful audio; no audio-only gameplay.
-- Options for larger text, high contrast, left-handed controls, hold-versus-toggle, timing assistance, haptics off, and tutorial replay.
-- Announce Three.js board state through a concise navigable model rather than describing every decorative object.
+**Typography.** System sans (`system-ui, Segoe UI, Roboto`); title `clamp(26px,4.5vw,40px)` 700; body `clamp(14px,2vw,18px)`; line length capped at 70ch. "Larger text" scales the root to 120%.
 
-## 4. Visual and audio design
+**Motion.** Playable cards translate up 4 px; hover brightens; hint outline holds 1.6 s; overlays appear without animation. The render loop only redraws (no per-frame animation) and idles when the tab is hidden. Reduced motion (`.ce-reduced-motion`) removes all CSS transitions and animations; the 3D scene has no camera motion to remove.
 
-### Visual contract
-
-The subject is the active playfield at near-tabletop to room scale, framed so state changes occupy most of the screen. The scene is a vivid card lounge with color-coded table lighting. Use an authored camera, original procedural geometry, restrained environmental storytelling, and a deterministic visual seed. The no-post-processing baseline must still communicate hierarchy, depth, selection, and state.
+**Visual assets the design calls for.** Title key art (lounge table with the four glowing suits), a win illustration and a loss illustration for results, and a store cover derived from the key art — all shipped under `assets/` and `coverart.png` (see §15).
 
-### Three.js scene design
-
-- Use physically based lighting and color management with one dominant key, soft environment fill, and contact grounding. Gameplay colors are tested after tone mapping.
-- Build reusable semantic meshes for active pieces, board cells, obstacles, targets, and environment modules. Geometry detail follows silhouette importance and camera distance.
-- Use instancing for repeated pieces and props, pooled effects, texture atlases where appropriate, and explicit disposal on scene changes.
-- Separate render layers for environment, gameplay, selection/ghosts, effects, and UI anchors. Cosmetic particles never intercept raycasts.
-- Selection uses a combination of lift/pose, outline or rim, and grounded marker—not bloom alone. Legal targets preview before commit; invalid targets explain why.
-- Event hierarchy: input acknowledgment < legal move < combo/goal < round completion. Reserve camera motion, strong emission, and dense particles for the highest tier.
-- Audio uses original short transients tied to logical events, layered material impacts, quiet ambience, and adaptive music stems. Randomized pitch/variant is seeded for replay consistency where recording matters.
-
-### Camera and motion
+## 9. Audio direction
 
-- Choose orthographic or low-distortion perspective according to depth requirements; expose framing constants rather than magic offsets.
-- Camera transitions use authored duration/easing or critically damped springs and remain interruptible. Never animate by cumulative per-frame lerp.
-- Decorative motion is paused or reduced when hidden. Gameplay animation derives from simulation state and interpolation alpha, not frame count.
-- Camera shake is low-amplitude, event-tiered, disabled by reduced motion, and never changes raycast truth.
+**Mix.** Effects are short dry transients on a warm felt table; the "win" fanfare and "achievement" chime are the only bright, sustained cues; loss is a soft descent. Music is a quiet two-oscillator pad (C4 + E4 sines) started on the first user gesture unless muted. Buses (`CEAudio.BUSES`): `music` 0.6, `effects` 0.8, `ambience` 0.5 (reserved, nothing routed) under a 0.9 master; a Mute toggle zeroes all three. Samples are lazy-fetched after the WebAudio unlock; until decoded, or if a fetch fails, `playSfx` falls back to a synthesized blip per event so every cue exists even offline. Several clips per event rotate in order (`sampleRotate`).
 
-### Graphics-skill routing
+**SFX event table** — source for `sfx/manifest.txt`.
 
-During implementation, begin with `threejs-skill-router` and load only the following retained skills because they materially affect this visual target:
+| Event id | File(s) | Sound | Fired by |
+|---|---|---|---|
+| `select` | `ui-select-tick`, `card-select-snap`, `chip-select-click` | soft wooden tick / card snap / chip click | every `btn()` press |
+| `card` | `card-play-slide`, `card-place-thump`, `card-flip-snap` | card slides, thumps, flips on felt | `cardPlayed` with a number card |
+| `draw` | `deck-draw-whoosh`, `deck-draw-slide`, `deck-tap-draw` | card pulled from the deck | `drew` |
+| `action` | `wild-eight-chime`, `action-whoosh-shimmer`, `action-zap-pop` | chime, shimmer whoosh, zap-pop | `cardPlayed` with an action card; `reversed` |
+| `win` | `win-fanfare-brass`, `win-chime-arpeggio`, `win-applause-brief` | fanfare, arpeggio, applause | `roundEnd` when the human wins |
+| `lose` | `lose-soft-descend` | gentle descending woodwind | `roundEnd` when an AI wins |
+| `invalid` | `invalid-felt-thud` | polite double tap on felt | `invalidAction` for the human; lesson gate |
+| `undo` | `undo-card-slide-back` | card slides back and is picked up | `undone` |
+| `turn` | `turn-glass-bell` | single glass bell | `turnPassed` whose next seat is the human |
+| `penalty` | `penalty-cards-flurry` | flurry of dealt cards | `penaltyTaken` |
+| `onecard` | `onecard-knock-alert` | two knuckle knocks | `oneCardLeft` |
+| `hint` | `hint-soft-sparkle` | soft sparkle | Hint button / H |
+| `achievement` | `achievement-warm-chime` | warm two-chord chime | achievement unlock; lesson complete |
+| `shuffle` | `shuffle-deck-riffle` | riffle shuffle | new deal; discard pile recycled |
 
-- `threejs-camera-direction` for deliberate framing and input-safe camera transitions
-- `threejs-procedural-geometry` for authored, inspectable meshes instead of primitive-only placeholders
-- `threejs-procedural-materials` for coherent PBR surfaces, perceptual parameters, and readable state masks
-- `threejs-procedural-animation` for deterministic motion phases, springs, and interruption-safe transitions
-- `threejs-procedural-vfx` for bounded particles, trails, impact accents, and event hierarchy
-- `threejs-exposure-color-grading` for tone mapping, adaptation limits, and accessible color separation
-- `threejs-image-pipeline` for explicit depth/color ownership and pass ordering
-- `threejs-visual-validation` for fixed-view captures, seed sweeps, and performance evidence
+All clips: MOSS-SoundEffect v2.0, 48 kHz mono Opus 96 kbps, loudness-normalized to −20 LUFS, 1–3 s.
 
-Follow the skill pack's acceptance gate: deterministic seeds, debug views for controlling fields, perceptually grouped parameters, mechanism-backed quality tiers, and a readable no-post baseline. Do not add an effect merely because a skill exists.
+## 10. Localization
 
-### Performance budgets
+The game ships in **English only**; every string is an inline literal in `app.js` (screens, announcements, reason texts), `content.js` (stage, lesson and challenge copy) and `rules.js` (color and kind labels via `COLOR_INFO`/`KIND_LABEL`). There is no language selector and `<html lang="en">` is fixed. The layout already tolerates ~30 % expansion: buttons wrap, taglines cap at 70ch, card labels are `clamp`-sized. The required locale set — en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it-IT — is design intent (see §17).
 
-- Target 60 fps at the default tier and a stable 30 fps fallback on constrained mobile hardware.
-- Default active gameplay: ≤150 draw calls desktop, ≤90 mobile; ≤350k visible triangles desktop, ≤140k mobile; transient particles ≤20k desktop and ≤5k mobile.
-- Cap device pixel ratio by quality tier; dynamically lower render scale before dropping simulation rate. UI text remains native resolution.
-- Avoid runtime shader compilation during active play by prewarming required variants. Avoid per-frame allocations in simulation/render loops.
-- Quality tiers independently control shadows, environment detail, particles, post effects, antialiasing, and render scale; they never alter rules or visibility of hazards.
+## 11. Accessibility
 
-## 5. Technical architecture
+- **Keyboard-only path:** all controls are native `<button>`, `<select>` and `<input>`; Tab order follows the DOM; the first control of each screen and overlay is focused on open; `:focus-visible` draws a 3-px `#ffcf4d` ring. Shortcuts D/H/U/P/Esc.
+- **Announcements:** one polite `role="status"` live region (`CEUI.announce`) reports menu changes, every play/draw/penalty/skip/reverse/color change, one-card warnings, timeouts, invalid moves with the reason, undo, achievements and results. The turn label is itself a `role="status"`. Discard top is `role="img"` with a text label; the hand is a labelled group; each card's `aria-label` includes "not playable: <reason>" when disabled.
+- **Color vision:** shape glyphs on every card and chip; four palettes in Settings; High contrast mode adds white borders and a yellow primary.
+- **Reduced motion, larger text:** Settings toggles (persisted) apply body classes.
+- **Targets:** ≥ 44 × 44 px for buttons, cards, selects and checkboxes; color-chooser buttons 110 × 56 px.
+- **Audio:** no audio-only information — every cue has a text announcement; Mute all.
+- **Contrast:** body text `#f4efe9` on `#0c0a0e` (≈ 17:1); primary button text `#1c0d08` on `#ff7a4d` (≈ 7:1); card labels use a 1-px shadow over saturated fills.
 
-### Client modules
+## 12. StarHermit integration
 
-- `bootstrap`: host handshake, capability detection, asset manifest, lifecycle.
-- `rules`: pure deterministic state transitions, legality, scoring, seeded random stream.
-- `session`: local or hosted commands, snapshots, prediction policy, reconnect, replay.
-- `render`: Three.js scene graph, semantic entity views, camera, lighting, VFX, quality.
-- `ui`: responsive DOM shell, focus, localization, settings, overlays, accessibility mirror.
-- `audio`: buses, event mapping, focus/background behavior, decode and memory policy.
-- `content`: versioned levels, themes, tutorials, validation metadata.
-- `platform`: token-aware REST/WebSocket adapter, retries, rate-limit handling, telemetry consent.
+Conventions per https://wiki.starhermit.com/.
 
-No module may mutate rules state except through a validated command. Rendering consumes immutable snapshots plus interpolation data. UI state and simulation state are separate so closing a drawer cannot affect a match.
+| Feature | Status |
+|---|---|
+| Packaging (`starhermit.txt`: name, launch, owner, cover, server) | Used. Launch path is `index.html`; cover is `coverart.png`. |
+| Identity / profile | Not used. `CEStore.loadProfile` creates a local guest (`guest-…`, "Guest"); no sign-in, no profile fetch. |
+| Presence, activity start/end | Not used. |
+| Server time (`/api/v1/time`) | Not called. `CEPlatform.serverNow()` returns local time + 0 offset; the daily date is derived from it in UTC. |
+| Per-game settings / cloud save | Not used. Settings and progress are localStorage documents only. |
+| Leaderboards | Not used. Daily wins are recorded locally in `stats.dailyCompleted`. |
+| Achievements API | Not used. The five achievements are local and announced in-game. |
+| Sessions, invitations, matchmaking, chat, voice | Not used. Solo versus deterministic AI only. |
+| Game Script | `server=server.js` is declared, but `server.js` is a static file host, not an authoritative rules script. |
 
-### Determinism, replay, and security
+The engine is prepared for hosted play — pure rules, idempotent command ids, serializable state, replay hashes — but no network path exists today.
 
-- Fixed simulation step where physics exists; quantize authoritative inputs and define stable collision/order rules.
-- Use separate seeded random streams for rules, content decoration, and audiovisual variants. Cosmetic randomness never changes rules.
-- Replay envelope: schema version, build/content version, seed, initial hash, timestamp offset, ordered commands, periodic state hashes, terminal result.
-- Validate all network input for identity, session membership, turn/tick, bounds, rate, payload size, and legal action. Reject duplicates idempotently by command ID.
-- Treat client clocks, scores, inventories, roles, physics outcomes, and completion claims as untrusted in competitive contexts.
+## 13. Technical architecture
 
-### Loading and resilience
+- **Module boundaries:** `rules` mutates nothing outside `applyCommand`'s cloned state; `session` is the only caller of `applyCommand` in the browser; `app` never edits `session.state`. Rendering (`CERender.syncState`) and the DOM (`renderGame`) both consume the immutable state after each dispatch.
+- **Determinism:** rules RNG and decor RNG are serialized in state; AI deliberation copies the decor stream so replays (which skip deliberation) match live hashes. `hashState` normalizes transient fields and caps the log at 64 entries.
+- **Persistence:** `localStorage` keys `coloreights.settings` (v2), `coloreights.progress` (v2), `coloreights.profile`, `coloreights.snapshot`. Documents wrap `{version, data, updatedAt, checksum}`; a corrupt checksum or newer version yields defaults. "Save & quit" stores `session.snapshot()` (state JSON, humanDraws, replay); the title shows Resume round only while the saved phase is `active`; finishing a round clears it. `rules.deserialize` migrates versions < 3 by filling missing fields.
+- **Rendering budget:** one table mesh, one plane, a pool of 64 `BoxGeometry` cards (materials recreated only when a card's color changes), two lights, pixel ratio capped at 2, camera z 9 (≥ 720 px) or 13.5 (narrower). No shadows, no post-processing, no per-frame animation; the loop returns early while `document.hidden`.
+- **Performance targets:** first interactive under 2 s on a mid-range phone (three.js ≈ 1.2 MB is the only large asset; images total ≈ 58 KB; SFX are fetched lazily after the first gesture); p95 input-to-feedback < 100 ms (synchronous dispatch + immediate DOM rebuild).
+- **How e2e drives the UI:** `tests/e2e.mjs` serves the folder on `PORT` (or an ephemeral port), launches Chrome via `playwright-core`, then clicks the visible Practice → Start round buttons, plays a lifted card or Draw, uses the color chooser if it appears, opens and closes Pause, and drives the round to results with a 120 ms interval that only clicks enabled `.ce-card-btn.ce-playable` / `.ce-draw-pile` / `.ce-color-btn` elements — no engine calls for gameplay.
 
-- Show useful progress by asset group; load core rules/UI first and scenic assets lazily. Provide procedural low-detail substitutes if optional assets fail.
-- Cache immutable hashed assets and the last safe local snapshot. Updates activate between rounds, never during one.
-- Recover WebGL context by rebuilding GPU resources from retained CPU descriptors. If 3D is unavailable, present a clear compatibility message and preserve account/session state.
-- Background tabs reduce rendering to zero or a low heartbeat while preserving required network lifecycle.
+## 14. Testing and acceptance criteria
 
-## 6. StarHermit integration
+`npm test` (`tests/rules.test.mjs`, 39 tests, no dependencies): deck composition and uniqueness; setup invariants; first discard never Wild Draw Four; seed determinism; legality (draw always offered, out-of-turn, color/rank/wild matching, explained mismatches, finished-round rejection); effects (skip, reverse incl. 2-player, draw2 pending and absorbed, stacking on/off, human wild waits for color, wild4 pending); monotonic turn numbers; scoring with breakdown; resign, move limit, rank ordering; malformed commands leave gameplay state untouched; illegal card counted; serialize round-trip, v1 migration, future version rejected; replay verification and tamper detection; 20 seeded games terminate; discard recycling; 400-command fuzz with no duplicate ownership; 40 stages with unique ids/seeds, 5 mastery stages, 5 themes, stable daily seeds, `validateAll` (every stage, daily window, challenge terminates; every lesson's required action is legal).
 
-### Packaging and launch
-- Ship a browser distribution with `starhermit.txt` at its root, `name=Color Eights`, and `launch=index.html`. Keep source files, secrets, design documents, and source maps outside the uploaded distribution.
-- Read the game scope from the short-lived launch token rather than hard-coding a slug. Use same-origin `/api` and `/ws` routes when hosted. Refresh account tokens through the host shell; never persist access or launch tokens in local storage.
-- Synchronize countdowns and daily boundaries with `GET /api/v1/time` using round-trip-adjusted offset. Treat rate limits and structured `{"error":"..."}` responses as recoverable UI states.
+`npm run test:e2e` (`tests/e2e.mjs`): at 1280×800 and 390×844 (touch) — page loads with zero console errors (GPU noise filtered), all ten globals exist, title has ≥ 5 buttons incl. Practice, practice setup renders selects, game shows 7 hand cards + discard + draw + turn label + color chip, a human action succeeds through the UI, pause opens/resumes, the round reaches results with a breakdown, Back to menu works, content integrity (40 stages, `j01`), settings/progress round-trip. Screenshots land in `/tmp/color-eights-e2e-*.png`.
 
-### Identity, profile, presence, and preferences
-- Support guest practice locally, then offer account sign-in for durable progress. Use the profile display name and avatar only where identity is useful, honor profile privacy, and send throttled presence heartbeats while actively playing.
-- Store accessibility, audio, graphics tier, tutorial completion, camera preference, and rules options through per-game settings. Declare desktop action bindings and read player overrides; touch mappings remain responsive UI controls.
-- Cloud-save progression as a versioned, checksummed document. Resolve conflicts by preserving both snapshots and asking the player when neither is a strict descendant. Never place credentials or private chat in saves.
+`npm run test:smoke` (`tests/smoke-screens.mjs`): journey grid has 40 stages, stage intro → game, save & quit → Resume round keeps stage title and draw count, lesson 1 rejects a wrong card and completes on the right one, settings rows ≥ 6 and palette persists, daily and a challenge start, Escape pauses and resumes.
 
-### Discovery, activity, and social layer
-- Start and end launch activity so playtime is accurate. Surface entitlement or catalog state only in host-owned chrome; the game itself must remain playable without promotional interruption.
-- Provide a compact friends panel for score comparison and invitations where appropriate. Respect presence visibility and do not expose a hidden or private profile through game UI.
-- Use friend invitations and the game-invite inbox for private sessions. Text chat belongs in a collapsible, moderated panel with block/report hooks, unread state, a 10-message-per-minute-aware composer, and no chat over critical controls.
-- Offer voice rooms only as an explicit opt-in after joining a compatible conversation. Default muted, expose speaking/mute indicators, and provide leave/report controls. Core rules must never require voice.
+**QA bar (checkable):** a new player sees the rule line on the title and the lesson banner in Learn; every listed mode starts from the browser; no console errors or warnings during the e2e; no text or control is clipped at 1280×800, 390×844 portrait or 844×390 landscape (menus scroll; the hand wraps); all controls reachable by keyboard; `node --check` passes on every JS file; `LICENSE.md` present.
 
-### Achievements and leaderboards
-- Declare a small static achievement set: first completion, mechanic mastery, a sustained streak, a difficult content milestone, and an accessibility-neutral long-term goal. Keys are stable, lowercase identifiers; unlocks are idempotent.
-- Provide global and friends-filtered boards for the primary metric plus a fair daily/weekly board. Include ruleset, content version, seed, assists, and duration with every submission; reject impossible or stale-version scores.
-- Competitive outcomes, rating changes, and achievement unlocks are server-authoritative. Never accept a client-supplied winner, score, hidden state, or elapsed time as truth.
+## 15. Asset inventory
 
-### Sessions and transport
-- Use the shared Games API for invitations, nearest-rating matchmaking where competitive, practice sessions against deterministic AI where suitable, session summaries, deadlines, move submission, and replays.
-- Run rules in a sandboxed authoritative JavaScript Game Script. Persist compact JSON state, whitelist public messages, reject out-of-turn or malformed input, use platform time for deadlines, and end through the authoritative result contract.
-- Use gameplay WebSocket events for immediate move/result updates, but make REST session detail the reconnect source of truth. The peer relay is unnecessary for the initial turn-based design.
+| Path | Purpose | Source | Status |
+|---|---|---|---|
+| `assets/key-art.webp` (1280×720, 29 KB) | Title screen illustration | FLUX.2 klein, seed 8101, 1536×864, 28 steps | generated in this pass, wired (`titleScreen`) |
+| `assets/results-win.webp` (960×534, 15 KB) | Results illustration on a human win | FLUX.2 klein, seed 8102, 1152×640 | generated in this pass, wired (`resultsScreen`) |
+| `assets/results-lose.webp` (960×534, 14 KB) | Results illustration on an AI win | FLUX.2 klein, seed 8103, 1152×640 | generated in this pass, wired |
+| `coverart.png` (1200×675, 167 KB) | Store cover | key art + ffmpeg drawtext title/tagline, 256-color PNG | replaced in this pass (previous file was a generic placeholder) |
+| `icon.png` (256×256), `favicon.svg` | Launcher icon, tab icon | hand-authored SVG of two tilted cards | shipped |
+| `sfx/*.opus` × 15 (select, card, draw, action, win) | Core cues | MOSS-SoundEffect v2.0 | shipped |
+| `sfx/*.opus` × 9 (lose, invalid, undo, turn, penalty, onecard, hint, achievement, shuffle) | New cues | MOSS-SoundEffect v2.0, 100 steps | generated in this pass, wired in `app.js`/`audio.js` |
+| `sfx/manifest.txt` | Canonical clip → event map | authored | shipped |
+| 3D models / character animation | — | — | not called for: cards and table are procedural, no humanoid |
 
-### Publishing and operations
-- Keep the authoritative script inside the distribution and declare it with `server=server.js`. Choose a digest-pinned container only if profiling proves the sandbox unsuitable; no initial design here requires one.
-- Define control defaults, achievement metadata, and versioned settings before release. Publish immutable build assets, verify the launch path, maintain migration tests for saves, and expose no secret configuration to the client.
-- Capture anonymous funnel events only for start, tutorial step, round end, retry, settings change, and error category. Avoid raw text, precise personal data, and cross-title tracking.
+## 16. Known limitations
 
-## 7. Content, economy, and retention
+- A card drawn with Draw-to-match is reported as playable (`drew.playableId`) but cannot be played until the player's next turn; the UI does not mention this.
+- *Perfect Flow* (`ch-nodraw`, `special: 'no-draw'`) is completed by any win; the no-draw condition is not enforced or checked.
+- The turn timer's "(Ns)" text only refreshes when the state changes; there is no ticking countdown or last-seconds cue.
+- Daily seeds use the local clock (server time offset is always 0), so a device with a wrong clock plays a different day.
+- `settings.controls` declares remappable bindings and `settings.audio.voice` a voice bus, but the keyboard handler uses fixed keys and no voice bus exists.
+- The 3D layer shows only the discard and the human hand as untextured colored slabs; opponents' hands, the draw pile and card faces are not drawn in 3D. Music is a static two-tone pad.
+- `rankResults` and `invalidCounts` are engine-only; results show a single winner.
+- On a 390-px-wide phone the 7-card hand row touches the viewport edges (cards stay fully visible and tappable); 8+ cards wrap. Long labels ("Leaf Reverse", "Wild Draw Four") break mid-word inside the 64-px card.
+- Achievements, dailies and journey progress live only in this browser's localStorage.
 
-- Launch scope: tutorial sequence, at least 40 authored stages or equivalent procedural depth, daily challenge, practice, five visual themes, and a mastery track.
-- Cosmetic rewards may alter materials, trails, board surrounds, ambience, or profile flourishes, but never hitboxes, timing windows, information, or power.
-- Reward cadence: early feedback every session, meaningful unlock every 3–5 sessions, and long-term goals visible without manipulative countdowns.
-- No real-money wagering, paid random rewards, forced advertising, energy pressure, punitive streak loss, or purchases that affect competitive outcomes.
-- Notifications, if ever added by the host, are opt-in, frequency-capped, quiet-hour aware, and never use false urgency.
+## 17. Design intent not yet implemented
 
-## 8. Analytics and privacy
-
-Measure tutorial completion, first meaningful action time, session duration bands, level attempts, quit state, input modality, performance tier, reconnect success, and accessibility feature usage only in aggregate. Use random session identifiers, short retention, and explicit consent where required. Never collect message content, drawings, voice, private board notes, or exact pointer trails as analytics.
-
-Success targets for the first public test: median first-play time under 20 seconds, tutorial completion above 80%, crash-free sessions above 99.5%, p95 input acknowledgment below 100 ms locally, and at least 95% of supported mobile sessions holding their selected frame-rate tier.
-
-## 9. Testing and acceptance criteria
-
-### Rules and content
-
-- Unit-test every legal action, invalid-action reason, scoring component, terminal state, and serialization migration.
-- Property-test deterministic replay: the same version, seed, and commands produce identical state hashes.
-- Fuzz malformed commands and generated content; prove no hangs, NaN physics, impossible mandatory states, or unbounded loops.
-- Golden-test representative easy, medium, hard, interrupted, resumed, and terminal sessions.
-
-### Interface and accessibility
-
-- Test pointer, coarse touch, keyboard-only, gamepad, screen reader, zoom to 200%, reduced motion, high contrast, safe areas, and both mobile orientations.
-- Verify focus restoration after every modal, meaningful live announcements, no keyboard traps, and no hover-only instructions.
-- Confirm all critical labels fit translated strings at 30% expansion and support right-to-left layout where localized.
-
-### Graphics and performance
-
-- Produce fixed-camera captures for every quality tier, deterministic seed sweeps, no-post baselines, debug-view mosaics, and 10-minute temporal stability runs.
-- Profile CPU, GPU, memory, shader compilation, draw calls, triangles, texture memory, and garbage collection on representative desktop and mobile classes.
-- Verify effects cannot obscure legal targets, alter picking, leak resources, or continue expensive updates while hidden.
-
-### Platform and network
-
-- Test expired/rotated tokens, privacy settings, rate limits, offline start, reconnect at each game state, duplicate commands, out-of-order events, server restart, and version mismatch.
-- Verify achievement idempotency, leaderboard validation, friends-only filtering, cloud-save conflict handling, activity start/end pairing, and server-time countdown accuracy.
-- For hosted sessions, test disconnect/rejoin, abandonment, timeout, invitation expiry, result reconciliation, replay access, moderation controls, and authoritative cheat attempts.
-
-## 10. Definition of done and non-goals
-
-This specification is ready for implementation when rules examples, content schema, wireframes for all responsive breakpoints, visual target frames, accessibility annotations, authoritative message schema, achievement definitions, leaderboard definitions, and performance test devices are approved.
-
-This document does **not** authorize implementation, asset production, monetization work, native wrappers, real-money systems, or copying any existing product. The initial build should favor one excellent core loop and a coherent original visual identity over feature breadth.
+- Localized strings for en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it-IT with a language selector and a string table outside `app.js`.
+- StarHermit identity, server-time sync for the daily boundary, daily/weekly leaderboards with seed + ruleset + assists, achievement unlock submission, cloud-saved settings/progress.
+- Enforce the *Perfect Flow* no-draw condition and show goal progress in the challenge header.
+- A ticking turn-timer display with a warning cue in the last three seconds.
+- Textured card faces (suit glyph + rank) and opponents' face-down hands in the Three.js scene; an ambience loop routed to the reserved `ambience` bus.
+- Hosted play through the StarHermit Games API using the existing replay envelope and idempotent command ids.

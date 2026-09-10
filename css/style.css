@@ -82,7 +82,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0c0a0e; f
 .ce-draw-pile:hover:not(:disabled){ background:#3d3247; }
 .ce-draw-pile:disabled { opacity:.45; cursor:not-allowed; }
 .ce-discard-top { border-radius:.6rem; display:flex; align-items:center; justify-content:center; text-align:center; padding:.2rem; color:#fff; font-size:clamp(11px,1.6vw,14px); font-weight:700; text-shadow:0 1px 2px #000a; }
-.ce-card-btn { color:#fff; font-weight:700; text-shadow:0 1px 2px #000a; min-width:44px; min-height:44px; }
+.ce-card-btn { color:#fff; font-weight:700; text-shadow:0 1px 2px #000a; min-width:44px; min-height:44px; padding:0 .15rem; overflow-wrap:anywhere; }
 .ce-card-btn.ce-playable { box-shadow:0 0 0 2px #ffffffcc, 0 4px 10px #0007; transform:translateY(-4px); }
 .ce-card-btn.ce-hinted { box-shadow:0 0 0 3px #ffcf4d, 0 4px 12px #0009; }
 .ce-action-row { display:flex; justify-content:center; gap:.5rem; padding-bottom:1rem; flex-wrap:wrap; }
@@ -99,6 +99,11 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0c0a0e; f
 .ce-breakdown { list-style:none; display:flex; flex-direction:column; gap:.3rem; color:#e9dfd5; font-size:clamp(13px,2vw,16px); line-height:1.45; }
 .ce-goal-line { color:#ffcf4d; font-weight:600; text-align:center; }
 
+/* ---------- illustrations (decorative; removed on load error) ---------- */
+.ce-key-art { display:block; width:100%; height:clamp(120px,26vh,300px); object-fit:cover; border-radius:1rem; box-shadow:0 8px 28px #000a; margin-bottom:.2rem; }
+.ce-results-art { display:block; width:min(100%,520px); height:clamp(100px,22vh,240px); object-fit:cover; border-radius:.9rem; box-shadow:0 6px 22px #000a; align-self:center; }
+@media (max-height:560px) { .ce-key-art { height:96px; } .ce-results-art { display:none; } }
+
 /* ---------- accessibility variants ---------- */
 .ce-btn:focus-visible, .ce-card-btn:focus-visible, select:focus-visible, input:focus-visible {
   outline:3px solid #ffcf4d; outline-offset:2px;
@@ -112,4 +117,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0c0a0e; f
 @media (max-width:719px) {
   .ce-menu-inner { padding-top:4vh; }
   .ce-hand { flex-wrap:wrap; }
+}
+
+/* short viewports (landscape phones): tighten the table column and let it scroll rather than clip */
+.ce-game { overflow-y:auto; }
+@media (max-height:480px) {
+  .ce-header { padding-top:.4rem; }
+  .ce-table-info { gap:.1rem; margin-bottom:.3rem; }
+  .ce-table-cards { margin-bottom:.3rem; }
+  .ce-draw-pile,.ce-discard-top { height:clamp(60px,15vh,104px); }
+  .ce-card-btn { height:clamp(52px,14vh,88px); }
+  .ce-hand { padding-bottom:.3rem; }
+  .ce-action-row { padding-bottom:.4rem; }
+  .ce-lesson-banner { margin-bottom:.2rem; }
 }

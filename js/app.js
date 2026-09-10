@@ -15,6 +15,7 @@
   let overlayMandatory = false;
   let progressRecorded = false;
   let lessonAwaiting = null; // 'play' | 'chooseColor' | 'finish' | null
+  let lastDrawPileLen = -1; // detects discard-pile recycling for the shuffle cue
 
   const SHAPE_GLYPH = { diamond: '◆', wave: '≈', leaf: '♣', sun: '☀' };
 
@@ -36,6 +37,17 @@
     b.type = 'button';
     b.addEventListener('click', () => { sfx('select'); onClick(); });
     return b;
+  }
+
+  // Decorative illustration; removes itself if the asset fails to load so layout never breaks.
+  function artImage(src, cls) {
+    const img = el('img', cls);
+    img.src = src;
+    img.alt = '';
+    img.decoding = 'async';
+    img.setAttribute('aria-hidden', 'true');
+    img.addEventListener('error', () => { if (img.parentNode) img.parentNode.removeChild(img); });
+    return img;
   }
 
   function palette() {
@@ -144,6 +156,7 @@
     global.CEUI.clear();
 
     const wrap = el('div', 'ce-menu-inner');
+    wrap.appendChild(artImage('assets/key-art.webp', 'ce-key-art'));
     wrap.appendChild(el('h1', 'ce-title-big', 'Color Eights'));
     wrap.appendChild(el('p', 'ce-tagline', 'Match the discard by color or rank. Empty your hand first.'));
 
@@ -356,6 +369,7 @@
     });
     wireSession();
     gameScreen();
+    sfx('shuffle');
     announce(ls.title + '. ' + ls.text);
   }
 
@@ -380,6 +394,7 @@
     progress.tutorials[ls.id] = true;
     global.CEStore.saveProgress(progress);
     checkAchievements();
+    sfx('achievement');
     const panel = el('div', 'ce-panel');
     panel.appendChild(el('h2', null, 'Lesson complete'));
     panel.appendChild(el('p', null, ls.title + ' — well done.'));
@@ -398,13 +413,17 @@
     session = global.CESession.createSession({ config, mode: modeName, players, aiDelayMs: 650 });
     wireSession();
     gameScreen();
+    sfx('shuffle');
   }
 
   function wireSession() {
     progressRecorded = false;
     global.CERender.applyTheme(currentTheme());
     session.on('events', onEvents);
+    lastDrawPileLen = session.state.drawPile.length;
     session.on('state', (st) => {
+      if (st.drawPile.length > lastDrawPileLen) sfx('shuffle'); // discard pile recycled
+      lastDrawPileLen = st.drawPile.length;
       global.CERender.syncState(st, cardHex);
       if (doc().querySelector('.ce-game')) renderGame();
       if (st.phase === 'finished') onRoundEnd(st);
@@ -440,7 +459,7 @@
           announce(playerName(ev.player) + ' drew ' + ev.count + (ev.count > 1 ? ' cards' : ' card'));
           break;
         case 'penaltyTaken':
-          sfx('draw');
+          sfx('penalty');
           announce(playerName(ev.player) + ' took the ' + ev.amount + '-card penalty');
           break;
         case 'skipped': announce(playerName(ev.player) + ' was skipped'); break;
@@ -452,14 +471,17 @@
         case 'awaitColorChoice':
           if (ev.player === session.humanId) renderGame(); // chooser appears
           break;
-        case 'oneCardLeft': announce(playerName(ev.player) + ' has one card left'); break;
+        case 'oneCardLeft': sfx('onecard'); announce(playerName(ev.player) + ' has one card left'); break;
         case 'turnTimeout': announce(playerName(ev.player) + ' ran out of time and drew'); break;
         case 'moveLimitHit': announce('Move limit reached'); break;
         case 'invalidAction':
-          if (ev.player === session.humanId) announce('That move is not legal: ' + reasonText(ev.reason));
+          if (ev.player === session.humanId) { sfx('invalid'); announce('That move is not legal: ' + reasonText(ev.reason)); }
           break;
-        case 'undone': announce('Move undone'); break;
-        case 'roundEnd': sfx('win'); break;
+        case 'undone': sfx('undo'); announce('Move undone'); break;
+        case 'turnPassed':
+          if (ev.next === session.humanId && !session.finished) sfx('turn');
+          break;
+        case 'roundEnd': sfx(ev.winner === session.humanId ? 'win' : 'lose'); break;
       }
     }
   }
@@ -618,7 +640,7 @@
     command.player = session.humanId;
     if (!lessonAllows(command, command.cardId && session.state.players[0].hand.find(c => c.id === command.cardId))) {
       announce(modeCtx.lesson.hintText);
-      sfx('draw');
+      sfx('invalid');
       return;
     }
     const res = session.dispatch(command);
@@ -634,9 +656,10 @@
 
   function showHint() {
     if (!session) return;
-    if (mode === 'learn' && modeCtx) { announce(modeCtx.lesson.hintText); return; }
+    if (mode === 'learn' && modeCtx) { sfx('hint'); announce(modeCtx.lesson.hintText); return; }
     const h = session.hint();
     if (!h.ok) { announce('No hint available right now'); return; }
+    sfx('hint');
     if (h.action.type === 'play') {
       announce('Hint: play ' + global.CERules.cardLabel(session.state.players[0].hand.find(c => c.id === h.action.cardId)));
       const elBtn = doc().querySelector('[data-card-id="' + h.action.cardId + '"]');
@@ -816,6 +839,7 @@
     const unlock = (key) => {
       if (progress.achievements[key]) return;
       progress.achievements[key] = Date.now();
+      sfx('achievement');
       announce('Achievement unlocked: ' + (ACHIEVEMENTS[key] || key));
     };
     if (humanWon) unlock('first-win');
@@ -839,6 +863,7 @@
       'move-limit': 'Move limit reached.',
     };
     wrap.appendChild(el('p', 'ce-tagline', reasonTextMap[st.terminalReason] || st.terminalReason));
+    wrap.appendChild(artImage(humanWon ? 'assets/results-win.webp' : 'assets/results-lose.webp', 'ce-results-art'));
     if (journeyMet !== null && journeyMet !== undefined) {
       wrap.appendChild(el('p', 'ce-goal-line', journeyMet ? 'Stage goal met ✓' : 'Stage goal not met — ' + goalText(modeCtx.stage.goal)));
     }

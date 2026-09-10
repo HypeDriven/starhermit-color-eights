@@ -88,5 +88,59 @@
     "seconds": 3,
     "prompt": "A small crowd giving a brief warm applause swell.",
     "event": "win"
+  },
+  {
+    "name": "lose-soft-descend",
+    "seconds": 2,
+    "prompt": "A short gentle descending three-note woodwind phrase, wistful but warm, like losing a friendly card game.",
+    "event": "lose"
+  },
+  {
+    "name": "invalid-felt-thud",
+    "seconds": 1,
+    "prompt": "A soft muted double tap of a fingertip on a felt card table, a polite not-allowed thud, no harshness.",
+    "event": "invalid"
+  },
+  {
+    "name": "undo-card-slide-back",
+    "seconds": 1,
+    "prompt": "A playing card sliding backwards across felt and being picked up again, a quick reverse swish.",
+    "event": "undo"
+  },
+  {
+    "name": "turn-glass-bell",
+    "seconds": 1,
+    "prompt": "A single soft bright glass bell ding, short and clean, signalling it is your turn.",
+    "event": "turn"
+  },
+  {
+    "name": "penalty-cards-flurry",
+    "seconds": 2,
+    "prompt": "A quick flurry of several playing cards dealt rapidly onto a table one after another, papery.",
+    "event": "penalty"
+  },
+  {
+    "name": "onecard-knock-alert",
+    "seconds": 1,
+    "prompt": "Two quick knuckle knocks on a wooden card table, an alert that someone has one card left.",
+    "event": "onecard"
+  },
+  {
+    "name": "hint-soft-sparkle",
+    "seconds": 1,
+    "prompt": "A soft short sparkle shimmer, like a small glint of light, gentle and quiet.",
+    "event": "hint"
+  },
+  {
+    "name": "achievement-warm-chime",
+    "seconds": 3,
+    "prompt": "A warm rising two-chord chime with a soft bell resolve, celebratory but understated.",
+    "event": "achievement"
+  },
+  {
+    "name": "shuffle-deck-riffle",
+    "seconds": 2,
+    "prompt": "A deck of playing cards riffle shuffled once and squared up on a felt table.",
+    "event": "shuffle"
   }
 ]

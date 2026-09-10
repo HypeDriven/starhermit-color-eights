@@ -15,6 +15,7 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.webp': 'image/webp',
   '.ico': 'image/x-icon',
   '.txt': 'text/plain; charset=utf-8',
   '.opus': 'audio/ogg; codecs=opus',
@@ -29,6 +30,8 @@ const server = http.createServer((req, res) => {
   let urlPath = (req.url || '/').split('?')[0].split('#')[0];
   try { urlPath = decodeURIComponent(urlPath); } catch (e) { return send(res, 400, 'Bad request'); }
   if (urlPath === '/') urlPath = '/index.html';
+  // Dev-only material is never served: tests/, tools/, node_modules/ and dotfiles.
+  if (/^\/(tests|tools|node_modules)(\/|$)|(^|\/)\./.test(urlPath)) return send(res, 403, 'Forbidden');
   const filePath = path.normalize(path.join(ROOT, urlPath.replace(/^\/+/, '')));
   if (filePath !== ROOT && !filePath.startsWith(ROOT + path.sep)) return send(res, 403, 'Forbidden');
   fs.readFile(filePath, (err, data) => {

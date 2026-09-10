@@ -1,0 +1,28 @@
+# Color Eights — SFX manifest (canonical). One clip per line:
+# file | event id | description of the sound | usage context
+# Event ids are the names passed to CEAudio.playSfx(); several clips per event rotate in order.
+# All clips: MOSS-SoundEffect v2.0, 48 kHz mono Opus 96 kbps, loudness-normalized (-20 LUFS).
+ui-select-tick.opus | select | Short soft wooden tick, like a fingertip tapping the edge of a playing card. | Every button press (menu, overlay, card, draw pile); fired by btn() in app.js before the handler runs.
+card-select-snap.opus | select | A single playing card snapped lightly against a felt card table. | Rotation variant of select.
+chip-select-click.opus | select | A small plastic game chip clicking once on a wooden table. | Rotation variant of select.
+card-play-slide.opus | card | A playing card sliding across green felt and coming to a stop. | Any player plays a number card (cardPlayed event, kind=number).
+card-place-thump.opus | card | A playing card placed firmly onto a table with a soft paper thump. | Rotation variant of card.
+card-flip-snap.opus | card | A playing card flipped face-up with a quick crisp snap. | Rotation variant of card.
+deck-draw-whoosh.opus | draw | A single card drawn quickly from the top of a deck, soft paper whoosh. | Any player draws voluntarily (drew event).
+deck-draw-slide.opus | draw | A card pulled slowly off a deck with a dry paper sliding sound. | Rotation variant of draw.
+deck-tap-draw.opus | draw | A card deck tapped once on the table followed by one card being drawn. | Rotation variant of draw.
+wild-eight-chime.opus | action | A bright magical chime accent for playing a wild card, shimmering and short. | Any player plays an action card (skip, reverse, draw2, wild, wild4) and on the reversed event.
+action-whoosh-shimmer.opus | action | A quick airy whoosh with a shimmering sparkling tail, like a spell cast. | Rotation variant of action.
+action-zap-pop.opus | action | A short cartoonish electric zap ending in a small pop. | Rotation variant of action.
+win-fanfare-brass.opus | win | A short triumphant brass fanfare burst celebrating a round victory. | roundEnd event when the human seat is the winner.
+win-chime-arpeggio.opus | win | A rising happy chime arpeggio, cheerful and bright. | Rotation variant of win.
+win-applause-brief.opus | win | A small crowd giving a brief warm applause swell. | Rotation variant of win.
+lose-soft-descend.opus | lose | A short gentle descending three-note woodwind phrase, wistful but warm, like losing a friendly card game. | roundEnd event when an AI seat wins (empty hand, resignation, move limit).
+invalid-felt-thud.opus | invalid | A soft muted double tap of a fingertip on a felt card table, a polite not-allowed thud, no harshness. | invalidAction event for the human seat, and the Learn-mode gate when the player tries a non-required action.
+undo-card-slide-back.opus | undo | A playing card sliding backwards across felt and being picked up again, a quick reverse swish. | undone event (Practice with undo assist, U key or Undo button).
+turn-glass-bell.opus | turn | A single soft bright glass bell ding, short and clean, signalling it is your turn. | turnPassed event whose next seat is the human; not fired on the opening turn.
+penalty-cards-flurry.opus | penalty | A quick flurry of several playing cards dealt rapidly onto a table one after another, papery. | penaltyTaken event (a seat absorbs a Draw Two / Wild Draw Four penalty).
+onecard-knock-alert.opus | onecard | Two quick knuckle knocks on a wooden card table, an alert that someone has one card left. | oneCardLeft event for any seat.
+hint-soft-sparkle.opus | hint | A soft short sparkle shimmer, like a small glint of light, gentle and quiet. | Hint button / H key when a hint is shown (card outline pulses gold).
+achievement-warm-chime.opus | achievement | A warm rising two-chord chime with a soft bell resolve, celebratory but understated. | Achievement unlock and Lesson complete panel.
+shuffle-deck-riffle.opus | shuffle | A deck of playing cards riffle shuffled once and squared up on a felt table. | New deal (round start, lesson start) and when the discard pile is recycled into the draw pile.
