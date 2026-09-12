@@ -93,9 +93,27 @@
 
   /* ---------------- boot ---------------- */
   function boot() {
+    // Platform handshake first: token read, then the remote save (when
+    // hosted) wins over the local cache before anything renders.
+    try { global.CEPlatform.init(); } catch (e) { /* offline */ }
     settings = global.CEStore.loadSettings();
     progress = global.CEStore.loadProgress();
     global.CEStore.loadProfile();
+    if (global.CEPlatform.hosted) {
+      try {
+        global.CEPlatform.fetchProfile().then(renderAccountLine).catch(() => {});
+        global.CEPlatform.onSync(renderAccountLine);
+      } catch (e) { /* ok */ }
+      global.CEPlatform.loadCloud().then((remote) => {
+        if (!remote) return;
+        const S = global.CEStore;
+        const rs = remote.settings && S.unwrap(remote.settings, S.SETTINGS_VERSION);
+        const rp = remote.progress && S.unwrap(remote.progress, S.PROGRESS_VERSION);
+        if (rs) { settings = S.loadSettings(); S.saveSettings(Object.assign(settings, rs)); }
+        if (rp) { progress = S.loadProgress(); S.saveProgress(Object.assign(progress, rp)); }
+        applySettings();
+      }).catch(() => {});
+    }
 
     const canvas = doc().getElementById('ce-canvas');
     try {
@@ -159,6 +177,7 @@
     wrap.appendChild(artImage('assets/key-art.webp', 'ce-key-art'));
     wrap.appendChild(el('h1', 'ce-title-big', 'Color Eights'));
     wrap.appendChild(el('p', 'ce-tagline', 'Match the discard by color or rank. Empty your hand first.'));
+    wrap.appendChild(accountLine());
 
     const snap = resumeSnapshot();
     if (snap) wrap.appendChild(btn('Resume round', 'ce-btn-primary', () => resumeFrom(snap)));
@@ -174,6 +193,29 @@
     const first = wrap.querySelector('button');
     if (first) first.focus();
     announce('Color Eights main menu');
+  }
+
+  // Account + cloud-sync status line on the title menu. Offline keeps the
+  // identical local-only behaviour; hosted shows the account nickname.
+  function accountLine() {
+    const p = el('p', 'ce-tagline', '');
+    p.id = 'ce-account';
+    renderAccountLine();
+    return p;
+  }
+  function renderAccountLine() {
+    const P = global.CEPlatform;
+    const node = doc().getElementById('ce-account');
+    if (!node || !P) return;
+    if (!P.hosted) {
+      node.textContent = 'Offline — progress is stored on this device.';
+      return;
+    }
+    const name = P.profile ? P.profile.name : '…';
+    const syncTxt = P.sync === 'synced' ? 'progress synced'
+      : P.sync === 'saving' ? 'saving…'
+      : 'cloud sync unavailable';
+    node.textContent = 'Playing as ' + name + ' · ' + syncTxt;
   }
 
   function resumeSnapshot() {

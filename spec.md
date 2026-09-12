@@ -18,7 +18,7 @@
 | `js/session.js` | `CESession`: command dispatch with idempotent ids, undo stack, hint, AI scheduling, turn timer, snapshots, pause/resume. |
 | `js/store.js` | `CEStore`: localStorage documents (settings v2, progress v2, profile, resume snapshot) with FNV-1a checksums. |
 | `js/audio.js` | `CEAudio`: WebAudio buses, sample playback from `sfx/manifest.json`, synth fallbacks, two-tone pad music. |
-| `js/platform.js` | `CEPlatform`: token holders and server-time offset (currently a local stub, offset 0). |
+| `js/platform.js` | `CEPlatform`: StarHermit host adapter — fragment launch token + Bearer + 45-min refresh, profile nickname, cloud-save mirror (zip+base64 slot, debounced, sync status), server-time offset. |
 | `js/render.js` | `CERender`: Three.js scene, pooled card meshes, theme application, resize framing, idle-when-hidden loop. |
 | `js/ui.js` | `CEUI`: screen swapping, element helper, polite live region. |
 | `js/game.js` | `CEGame`: thin facade over the session for the human seat (legal actions, play/draw/chooseColor). |
@@ -203,10 +203,10 @@ Conventions per https://wiki.starhermit.com/.
 | Feature | Status |
 |---|---|
 | Packaging (`starhermit.txt`: name, launch, owner, cover, server) | Used. Launch path is `index.html`; cover is `coverart.png`. |
-| Identity / profile | Not used. `CEStore.loadProfile` creates a local guest (`guest-…`, "Guest"); no sign-in, no profile fetch. |
+| Identity / profile | Used when hosted. `#game_token=<jwt>` (fragment, stripped after read; query forms for local dev) is decoded for `sub` + `game_scope`, sent as `Authorization: Bearer`, re-minted every 45 min via `POST /api/v1/games/{slug}/launch-token` (60 s retry). The title menu shows "Playing as <nickname> · sync status" from `GET /api/v1/users/{sub}/profile` (never usernames, never `/api/v1/me`; `Player <id8>` fallback). Offline keeps the local guest profile and the offline status line. |
 | Presence, activity start/end | Not used. |
 | Server time (`/api/v1/time`) | Not called. `CEPlatform.serverNow()` returns local time + 0 offset; the daily date is derived from it in UTC. |
-| Per-game settings / cloud save | Not used. Settings and progress are localStorage documents only. |
+| Per-game settings / cloud save | Used when hosted. The wrapped settings/progress documents mirror to one zip+base64 slot at `GET/PUT /api/v1/me/cloud-saves/{slug}`: remote wins on boot (checksum-validated through `CEStore.unwrap`), saves debounce 2 s and flush on `pagehide`/hidden with keepalive. localStorage stays the offline cache. |
 | Leaderboards | Not used. Daily wins are recorded locally in `stats.dailyCompleted`. |
 | Achievements API | Not used. The five achievements are local and announced in-game. |
 | Sessions, invitations, matchmaking, chat, voice | Not used. Solo versus deterministic AI only. |
@@ -262,7 +262,7 @@ The engine is prepared for hosted play — pure rules, idempotent command ids, s
 ## 17. Design intent not yet implemented
 
 - Localized strings for en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it-IT with a language selector and a string table outside `app.js`.
-- StarHermit identity, server-time sync for the daily boundary, daily/weekly leaderboards with seed + ruleset + assists, achievement unlock submission, cloud-saved settings/progress.
+- Server-time sync for the daily boundary, daily/weekly leaderboards with seed + ruleset + assists, and achievement unlock submission (identity and cloud-saved settings/progress are done).
 - Enforce the *Perfect Flow* no-draw condition and show goal progress in the challenge header.
 - A ticking turn-timer display with a warning cue in the last three seconds.
 - Textured card faces (suit glyph + rank) and opponents' face-down hands in the Three.js scene; an ambience loop routed to the reserved `ambience` bus.

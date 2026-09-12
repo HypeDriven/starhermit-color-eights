@@ -18,7 +18,16 @@
   }
   function set(key, val) {
     const s = ls(); if (!s) return false;
-    try { s.setItem(NS + key, JSON.stringify(val)); return true; } catch (e) { return false; }
+    try {
+      s.setItem(NS + key, JSON.stringify(val));
+      // Mirror the save records to the platform cloud slot (debounced there).
+      if ((key === 'settings' || key === 'progress') && global.CEPlatform && global.CEPlatform.hosted) {
+        try {
+          global.CEPlatform.saveCloud({ settings: get('settings', null), progress: get('progress', null) });
+        } catch (e) { /* mirror errors never break saves */ }
+      }
+      return true;
+    } catch (e) { return false; }
   }
   function del(key) { const s = ls(); if (s) try { s.removeItem(NS + key); } catch (e) {} }
 
