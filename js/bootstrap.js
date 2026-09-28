@@ -30,7 +30,11 @@ await import('./session.js');
 await import('./store.js');
 await import('./audio.js');
 await import('./platform.js');
+await import('./gfx.js');
+// Post-processing / IBL addons are optional: without them the game renders directly.
+try { await import('./post.js'); } catch (e) { window.CEPost = null; }
 await import('./render.js');
+await import('./gfx-ui.js');
 await import('./ui.js');
 await import('./game.js');
 await import('./app.js');

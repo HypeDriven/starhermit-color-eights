@@ -117,6 +117,8 @@
 
     const canvas = doc().getElementById('ce-canvas');
     try {
+      global.CERender.setGraphics(settings.graphics.gfx || {});
+      global.CERender.setReducedMotion(!!settings.graphics.reducedMotion);
       global.CERender.init(canvas);
       global.CERender.applyTheme(currentTheme());
       global.CERender.start();
@@ -165,11 +167,17 @@
     b.classList.toggle('ce-contrast', !!settings.accessibility.highContrast);
     b.classList.toggle('ce-large-text', !!settings.accessibility.largeText);
     global.CERender.setQuality(settings.graphics.tier);
+    global.CERender.setReducedMotion(!!settings.graphics.reducedMotion);
+    // Re-apply graphics only when they differ (e.g. a cloud save arrived).
+    const gfx = settings.graphics.gfx || {};
+    if (JSON.stringify(gfx) !== JSON.stringify(global.CERender.getGraphics())) global.CERender.setGraphics(gfx);
   }
 
   /* ---------------- title / menus ---------------- */
   function titleScreen() {
     teardownSession();
+    global.CERender.applyTheme(global.CEContent.THEMES[global.CEContent.DEFAULT_THEME]);
+    global.CERender.syncState(null);
     global.CEUI.setScreen('ce-menu');
     global.CEUI.clear();
 
@@ -614,7 +622,7 @@
     table.appendChild(drawBtn);
     const top = R.topDiscard(st);
     const topEl = el('div', 'ce-discard-top', top ? cardGlyph(top) + ' ' + R.cardLabel(top) : '');
-    topEl.style.background = top ? cardHex(top) : '#444';
+    topEl.style.backgroundColor = top ? cardHex(top) : '#444';
     topEl.setAttribute('role', 'img');
     topEl.setAttribute('aria-label', 'Top of discard: ' + (top ? R.cardLabel(top) : 'none'));
     table.appendChild(topEl);
@@ -629,7 +637,7 @@
     for (const card of me.hand) {
       const label = cardGlyph(card) + ' ' + R.cardLabel(card);
       const b = btn(label, 'ce-card-btn' + (playable.has(card.id) ? ' ce-playable' : ''), () => tryPlay(card.id));
-      b.style.background = cardHex(card);
+      b.style.backgroundColor = cardHex(card);
       b.disabled = !playable.has(card.id);
       let aria = R.cardLabel(card);
       if (!playable.has(card.id)) {
@@ -670,7 +678,7 @@
         clearOverlay();
         dispatchHuman({ type: 'chooseColor', color: c });
       });
-      b.style.background = palette()[c];
+      b.style.backgroundColor = palette()[c];
       row.appendChild(b);
     }
     panel.appendChild(row);
@@ -755,9 +763,58 @@
     titleScreen();
   }
 
-  function settingsPanel() {
-    const panel = el('div', 'ce-panel');
+  // Settings overlay: General (audio, palette, accessibility) and Graphics tabs.
+  function settingsPanel(tab) {
+    const panel = el('div', 'ce-panel ce-settings-panel');
     panel.appendChild(el('h2', null, 'Settings'));
+    const T = global.CEGfxUI ? global.CEGfxUI.t : (k) => k;
+    const tabs = el('div', 'ce-tabs');
+    tabs.setAttribute('role', 'tablist');
+    const body = el('div', 'ce-tab-body');
+    body.setAttribute('role', 'tabpanel');
+    const tabBtns = {};
+    const select = (name, focus) => {
+      for (const k of Object.keys(tabBtns)) {
+        tabBtns[k].setAttribute('aria-selected', k === name ? 'true' : 'false');
+        tabBtns[k].classList.toggle('ce-tab-active', k === name);
+      }
+      body.innerHTML = '';
+      body.className = 'ce-tab-body';
+      body.dataset.tab = name;
+      if (name === 'graphics' && global.CEGfxUI) {
+        global.CEGfxUI.build(body, () => settings.graphics.gfx || {}, (next) => {
+          settings.graphics.gfx = next;
+          global.CERender.setGraphics(next);
+          global.CEStore.saveSettings(settings);
+        });
+      } else generalSettings(body);
+      if (focus) tabBtns[name].focus();
+    };
+    for (const [name, label] of [['general', T('general')], ['graphics', T('graphics')]]) {
+      const b = btn(label, 'ce-tab', () => select(name, true));
+      b.setAttribute('role', 'tab');
+      b.dataset.settingsTab = name;
+      tabBtns[name] = b;
+      tabs.appendChild(b);
+    }
+    tabs.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const cur = tabBtns.general.getAttribute('aria-selected') === 'true' ? 'general' : 'graphics';
+      select(cur === 'general' ? 'graphics' : 'general', true);
+      e.preventDefault();
+    });
+    panel.appendChild(tabs);
+    panel.appendChild(body);
+    select(tab || 'general', false);
+
+    panel.appendChild(btn('Close', 'ce-btn-primary', () => {
+      clearOverlay();
+      if (session && !session.finished && !doc().hidden) session.resume();
+    }));
+    return panel;
+  }
+
+  function generalSettings(panel) {
 
     const sliders = [['Music', 'music'], ['Effects', 'effects'], ['Ambience', 'ambience']];
     for (const [label, bus] of sliders) {
@@ -824,12 +881,6 @@
       row.appendChild(chk);
       panel.appendChild(row);
     }
-
-    panel.appendChild(btn('Close', 'ce-btn-primary', () => {
-      clearOverlay();
-      if (session && !session.finished && !doc().hidden) session.resume();
-    }));
-    return panel;
   }
 
   /* ---------------- round end / results ---------------- */

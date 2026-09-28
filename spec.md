@@ -5,21 +5,24 @@
 **Genre:** turn-based card game, solo versus 1–3 deterministic AI opponents.
 **Session length:** one round is 2–6 minutes (2 players) to 8–12 minutes (4 players, stacking).
 **Platforms:** desktop and mobile browsers (portrait and landscape), served as static files.
-**Rendering:** Three.js backdrop (table, discard, fanned hand as lit slabs) under a semantic DOM layer that carries every interactive control.
+**Rendering:** Three.js lounge table (felt, wood rim, pendant-lamp pool of light, discard pile, draw-pile stack, opponents' face-down fans) with quality presets and post-processing, under a semantic DOM layer that carries every interactive control.
 
 ## 1. Overview and file map
 
 | Path | Responsibility |
 |---|---|
-| `index.html` | Shell: `#ce-root` with the `#ce-canvas` (aria-hidden) and the `#ce-ui` screen element; loads `js/bootstrap.js`. |
-| `js/bootstrap.js` | Imports `vendor/three.module.js`, sets `window.THREE`, then imports the modules in dependency order. |
+| `index.html` | Shell: importmap (`three` → `vendor/three.module.js`, `three/addons/` → `vendor/three/addons/`), `#ce-root` with the `#ce-canvas` (aria-hidden) and the `#ce-ui` screen element; loads `js/bootstrap.js`. |
+| `js/bootstrap.js` | Imports `vendor/three.module.js`, sets `window.THREE`, then imports the modules in dependency order (`post.js` optionally — a failure leaves `CEPost` null and the game renders without post-processing). |
 | `js/rules.js` | `CERules`: pure deterministic engine — deck, legality, command application, scoring, AI, serialization, replay. No DOM, no Date, no Math.random. |
 | `js/content.js` | `CEContent`: 5 themes, 4 color-vision palettes, 40 Journey stages, 7 lessons, daily generator, 5 challenges, offline validators. |
 | `js/session.js` | `CESession`: command dispatch with idempotent ids, undo stack, hint, AI scheduling, turn timer, snapshots, pause/resume. |
 | `js/store.js` | `CEStore`: localStorage documents (settings v2, progress v2, profile, resume snapshot) with FNV-1a checksums. |
 | `js/audio.js` | `CEAudio`: WebAudio buses, sample playback from `sfx/manifest.json`, synth fallbacks, two-tone pad music. |
 | `js/platform.js` | `CEPlatform`: StarHermit host adapter — fragment launch token + Bearer + 45-min refresh, profile nickname, cloud-save mirror (zip+base64 slot, debounced, sync status), server-time offset. |
-| `js/render.js` | `CERender`: Three.js scene, pooled card meshes, theme application, resize framing, idle-when-hidden loop. |
+| `js/gfx.js` | `CEGfx`: pure graphics quality model — presets, categories, `detectPreset`, `resolve`, `presetTier`, `withPreset`, `describe`. |
+| `js/post.js` | ES module importing the r160 post-processing passes and `RoomEnvironment`; exposes `window.CEPost`. |
+| `js/render.js` | `CERender`: Three.js lounge scene, procedural textures, pooled card meshes mirroring the state, theme application, graphics settings (`setGraphics`/`graphicsInfo`), post chain, adaptive resolution, render-on-demand loop. |
+| `js/gfx-ui.js` | `CEGfxUI`: the Settings → Graphics section and its strings in nine locales. |
 | `js/ui.js` | `CEUI`: screen swapping, element helper, polite live region. |
 | `js/game.js` | `CEGame`: thin facade over the session for the human seat (legal actions, play/draw/chooseColor). |
 | `js/app.js` | `CEApp`: boot, all screens and overlays, event → SFX/announcement mapping, progress and achievements. |
@@ -28,11 +31,13 @@
 | `sfx/` | 24 Opus clips, `manifest.txt` (canonical), `manifest.json` (loader + generator input), `manifest.md` (generated). |
 | `server.js` | Local static host (`PORT` env, default 8080); refuses `tests/`, `tools/`, `node_modules/` and dotfiles. |
 | `tests/rules.test.mjs` | 39 engine and content tests (`npm test`). |
+| `tests/gfx.test.mjs` | Graphics model + panel-locale unit tests (`node --test`, part of `npm test`). |
 | `tests/e2e.mjs` | Playwright playthrough through the visible UI at desktop and mobile viewports (`npm run test:e2e`). |
 | `tests/smoke-screens.mjs` | Targeted screen smoke: journey, save/resume, lesson gating, settings, daily, challenges, keyboard. |
 | `starhermit.txt` | `name=Color Eights`, `launch=index.html`, `owner=…`, `server=server.js`, `cover=coverart.png`. |
 | `coverart.png`, `icon.png`, `favicon.svg` | Store art (1200×675), 256×256 icon, SVG favicon of two tilted cards. |
-| `vendor/three.module.js` | Three.js (MIT). |
+| `vendor/three.module.js` | Three.js r160 (MIT). |
+| `vendor/three/addons/` | Same-revision (0.160.1) addons: EffectComposer, RenderPass, ShaderPass, OutputPass, GTAOPass, UnrealBloomPass, SMAAPass, FXAAShader, RoomEnvironment and their shader/math dependencies. |
 | `LICENSE.md` | PolyForm Noncommercial 1.0.0. |
 
 ## 2. Vision and design pillars
@@ -125,7 +130,7 @@ boot ─► title ─┬► practice setup ─► game ─► results ─┬► 
                ├► daily (direct) ─► game
                ├► challenges list ─► game
                ├► learn list ─► game (lesson banner) ─► lesson complete (overlay)
-               ├► settings (overlay)
+               ├► settings (overlay: General | Graphics tabs)
                └► Resume round (only when a saved snapshot is still active)
 game overlays: pause (Resume / Restart round / Settings / Save & quit to menu / Quit without saving),
                color chooser (mandatory), lesson complete
@@ -147,13 +152,22 @@ game overlays: pause (Resume / Restart round / Settings / Save & quit to menu / 
 | Solarium | `#4a3a16` | `#181206` | `#ffcf4d` | stages 3,8,13,… |
 | Midnight Neon | `#241a3a` | `#0c0818` | `#b44dff` | stages 4,9,14,… |
 
-`CERender.applyTheme` sets scene background (fog), felt color and key-light color; the DOM keeps the ember accent in every theme.
+`CERender.applyTheme` sets the background and fog, felt, table body, wood rim (table color lifted toward walnut), floor, lamp (key) color and hemisphere fill; the DOM keeps the ember accent in every theme.
 
-**Shape language.** Rounded rectangles everywhere (buttons `.7rem`, cards `.6rem`, panels `1rem`); cards are flat color slabs with a white glyph + label and a 1-px text shadow; the 3D table is a wide cylinder under a single warm directional key light and ambient fill. The hero of the game screen is the hand row — lifted playable cards against the dim felt.
+**Shape language.** Rounded rectangles everywhere (buttons `.7rem`, cards `.6rem`, panels `1rem`); DOM cards are color slabs with a white glyph + label and a 1-px text shadow (with Surface detail on they gain a diagonal sheen, an inner white bevel and a drop shadow; the Draw button becomes a lattice card back on a paper-edge stack; panels get a soft gradient). The 3D table is a round felt top inside a lacquered wood rim, lit by an overhead pendant-lamp spotlight whose pool fades to a dark lounge; distant warm lamp glows sit at the far wall. The hero of the game screen is the hand row — lifted playable cards against the dim felt.
 
 **Typography.** System sans (`system-ui, Segoe UI, Roboto`); title `clamp(26px,4.5vw,40px)` 700; body `clamp(14px,2vw,18px)`; line length capped at 70ch. "Larger text" scales the root to 120%.
 
-**Motion.** Playable cards translate up 4 px; hover brightens; hint outline holds 1.6 s; overlays appear without animation. The render loop only redraws (no per-frame animation) and idles when the tab is hidden. Reduced motion (`.ce-reduced-motion`) removes all CSS transitions and animations; the 3D scene has no camera motion to remove.
+**Motion.** Playable cards translate up 4 px; hover brightens; hint outline holds 1.6 s; overlays appear without animation. In 3D a newly played card drops onto the discard pile (320 ms ease-out); with Ambient motion animated, the current-color glow breathes, the lamp flickers by a few percent and the far lamps twinkle; dust motes drift in the lamp cone. Reduced motion (the Settings toggle or `prefers-reduced-motion`) freezes all of it and removes CSS transitions; the camera never moves.
+
+**Graphics.** The renderer uses ACES filmic tone mapping and sRGB output. Lighting is a hemisphere fill (theme fill over floor color) plus a pendant-lamp spotlight whose cone is fitted to the felt and which casts PCF soft shadows (cards, draw pile and rim onto the felt; table onto the floor), plus a dim rim light. The 3D table mirrors the state: the last four discards scattered at the center (top card straight), a draw-pile stack whose height follows the pile, and a face-down fan per opponent (up to 14 cards, seated far / left-right / left-far-right for 1–3 opponents); a soft ring of the current color glows around the discard (theme accent on the title, where the four eights lie fanned beside a pile). Optional effects: shadows; GTAO ambient occlusion (additive glows are hidden from its depth pass); bloom limited to the glow ring, far lamps and brightest highlights (threshold 0.92); a color grade (gentle S-curve, +10 % saturation, warm highlights / cool shadows) with vignette; FXAA/SMAA/MSAA; image-based reflections from a PMREM `RoomEnvironment` (clearcoat on cards and rim, kept dim so the room stays dark); surface detail (procedural felt fibres with a printed ring, wood grain, rounded textured cards with corner indices and a lattice card back, far lamp glows, and the detailed DOM card styling); dust particles; ambient motion. The Settings panel's **Graphics** tab offers Quality (Auto (detected: <tier>), chosen from the GPU's unmasked renderer string — software renderers get Low, discrete GPUs / Apple M get High, others Balanced, touch devices at most Balanced; Low; Balanced; High; Ultra), Render scale 50–200 %, one select per effect ("From preset (<tier>)" by default; choosing a preset clears overrides), Adaptive resolution (averages 90 frames; above 26 ms steps down 0.1 to 60 %, below 14 ms back up 0.05), Show frame rate (`#ce-fps`, bottom-left), a summary "GPU · cost · W×H px", and a note when post-processing is unavailable. Changes apply immediately and persist in `settings.graphics.gfx` (mirrored to the cloud save when hosted); `<body data-gfx-preset data-gfx-auto>` and the `ce-gfx-detailed` class reflect the result.
+
+| Preset | Pixel-ratio cap × scale | Shadows | AO | Bloom | Grade | AA | Reflections | Detail | Particles | Motion |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Low | 1 × 1 | off | off | off | off | MSAA (canvas) | off | plain | off | static |
+| Balanced | 1.5 × 1 | 512² | off | on | on | FXAA | on | detailed | 60 | animated |
+| High | 2 × 1 | 1024² | on (8 samples) | on | on | SMAA | on | detailed | 180 | animated |
+| Ultra | 2 × 1.25 | 2048² | high (16 samples) | on | on | MSAA 4× target | on | detailed | 180 | animated |
 
 **Visual assets the design calls for.** Title key art (lounge table with the four glowing suits), a win illustration and a loss illustration for results, and a store cover derived from the key art — all shipped under `assets/` and `coverart.png` (see §15).
 
@@ -184,14 +198,15 @@ All clips: MOSS-SoundEffect v2.0, 48 kHz mono Opus 96 kbps, loudness-normalized 
 
 ## 10. Localization
 
-The game ships in **English only**; every string is an inline literal in `app.js` (screens, announcements, reason texts), `content.js` (stage, lesson and challenge copy) and `rules.js` (color and kind labels via `COLOR_INFO`/`KIND_LABEL`). There is no language selector and `<html lang="en">` is fixed. The layout already tolerates ~30 % expansion: buttons wrap, taglines cap at 70ch, card labels are `clamp`-sized. The required locale set — en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it-IT — is design intent (see §17).
+The game ships in **English only**, except the Settings → Graphics tab (and its General/Graphics tab labels), whose strings live in `js/gfx-ui.js` for en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR and it-IT and follow `navigator.language` (base-language fallback, else en-US). Every other string is an inline literal in `app.js` (screens, announcements, reason texts), `content.js` (stage, lesson and challenge copy) and `rules.js` (color and kind labels via `COLOR_INFO`/`KIND_LABEL`). There is no language selector and `<html lang="en">` is fixed. The layout already tolerates ~30 % expansion: buttons wrap, taglines cap at 70ch, card labels are `clamp`-sized. The required locale set — en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it-IT — is design intent (see §17).
 
 ## 11. Accessibility
 
 - **Keyboard-only path:** all controls are native `<button>`, `<select>` and `<input>`; Tab order follows the DOM; the first control of each screen and overlay is focused on open; `:focus-visible` draws a 3-px `#ffcf4d` ring. Shortcuts D/H/U/P/Esc.
 - **Announcements:** one polite `role="status"` live region (`CEUI.announce`) reports menu changes, every play/draw/penalty/skip/reverse/color change, one-card warnings, timeouts, invalid moves with the reason, undo, achievements and results. The turn label is itself a `role="status"`. Discard top is `role="img"` with a text label; the hand is a labelled group; each card's `aria-label` includes "not playable: <reason>" when disabled.
 - **Color vision:** shape glyphs on every card and chip; four palettes in Settings; High contrast mode adds white borders and a yellow primary.
-- **Reduced motion, larger text:** Settings toggles (persisted) apply body classes.
+- **Reduced motion, larger text:** Settings toggles (persisted) apply body classes; reduced motion (or the OS preference) also freezes all 3D animation.
+- **Graphics tab:** native `<select>`/range/checkbox controls with ids `gfx-preset`, `gfx-scale`, `gfx-<category>`, `gfx-adaptive`, `gfx-fps`; tabs are `role="tab"` buttons (`data-settings-tab`), Arrow Left/Right switch them; the summary is a polite live region.
 - **Targets:** ≥ 44 × 44 px for buttons, cards, selects and checkboxes; color-chooser buttons 110 × 56 px.
 - **Audio:** no audio-only information — every cue has a text announcement; Mute all.
 - **Contrast:** body text `#f4efe9` on `#0c0a0e` (≈ 17:1); primary button text `#1c0d08` on `#ff7a4d` (≈ 7:1); card labels use a 1-px shadow over saturated fills.
@@ -219,15 +234,15 @@ The engine is prepared for hosted play — pure rules, idempotent command ids, s
 - **Module boundaries:** `rules` mutates nothing outside `applyCommand`'s cloned state; `session` is the only caller of `applyCommand` in the browser; `app` never edits `session.state`. Rendering (`CERender.syncState`) and the DOM (`renderGame`) both consume the immutable state after each dispatch.
 - **Determinism:** rules RNG and decor RNG are serialized in state; AI deliberation copies the decor stream so replays (which skip deliberation) match live hashes. `hashState` normalizes transient fields and caps the log at 64 entries.
 - **Persistence:** `localStorage` keys `coloreights.settings` (v2), `coloreights.progress` (v2), `coloreights.profile`, `coloreights.snapshot`. Documents wrap `{version, data, updatedAt, checksum}`; a corrupt checksum or newer version yields defaults. "Save & quit" stores `session.snapshot()` (state JSON, humanDraws, replay); the title shows Resume round only while the saved phase is `active`; finishing a round clears it. `rules.deserialize` migrates versions < 3 by filling missing fields.
-- **Rendering budget:** one table mesh, one plane, a pool of 64 `BoxGeometry` cards (materials recreated only when a card's color changes), two lights, pixel ratio capped at 2, camera z 9 (≥ 720 px) or 13.5 (narrower). No shadows, no post-processing, no per-frame animation; the loop returns early while `document.hidden`.
+- **Rendering budget:** table body, felt disc, rim torus, floor, glow quad, six far-lamp quads, a draw-pile box and a pool of 72 card meshes (plain `BoxGeometry` or rounded `ExtrudeGeometry`; materials cached per face/color), three lights, ≤ 180 points. Pixel ratio = min(devicePixelRatio, preset cap) × preset scale × render scale × adaptive scale. Camera (0, 7.4, 7.6) → (0, −1.4, 0.35) at ≥ 720 px wide, (0, 10.5, 11.5) narrower. The EffectComposer (HalfFloat target: RenderPass → GTAO → UnrealBloom → OutputPass → grade → SMAA/FXAA) is built only when an effect needs it and rebuilt when its key (effects, size, pixel ratio) changes; if it throws, the game renders directly. When nothing animates (Low, or reduced motion) frames are rendered only after a state, theme, size or settings change, so Low is cheaper than a continuous loop; the loop returns early while `document.hidden`.
 - **Performance targets:** first interactive under 2 s on a mid-range phone (three.js ≈ 1.2 MB is the only large asset; images total ≈ 58 KB; SFX are fetched lazily after the first gesture); p95 input-to-feedback < 100 ms (synchronous dispatch + immediate DOM rebuild).
 - **How e2e drives the UI:** `tests/e2e.mjs` serves the folder on `PORT` (or an ephemeral port), launches Chrome via `playwright-core`, then clicks the visible Practice → Start round buttons, plays a lifted card or Draw, uses the color chooser if it appears, opens and closes Pause, and drives the round to results with a 120 ms interval that only clicks enabled `.ce-card-btn.ce-playable` / `.ce-draw-pile` / `.ce-color-btn` elements — no engine calls for gameplay.
 
 ## 14. Testing and acceptance criteria
 
-`npm test` (`tests/rules.test.mjs`, 39 tests, no dependencies): deck composition and uniqueness; setup invariants; first discard never Wild Draw Four; seed determinism; legality (draw always offered, out-of-turn, color/rank/wild matching, explained mismatches, finished-round rejection); effects (skip, reverse incl. 2-player, draw2 pending and absorbed, stacking on/off, human wild waits for color, wild4 pending); monotonic turn numbers; scoring with breakdown; resign, move limit, rank ordering; malformed commands leave gameplay state untouched; illegal card counted; serialize round-trip, v1 migration, future version rejected; replay verification and tamper detection; 20 seeded games terminate; discard recycling; 400-command fuzz with no duplicate ownership; 40 stages with unique ids/seeds, 5 mastery stages, 5 themes, stable daily seeds, `validateAll` (every stage, daily window, challenge terminates; every lesson's required action is legal).
+`npm test` also runs `tests/gfx.test.mjs` (detectPreset on sample GPU strings incl. touch cap, resolve with auto/preset/override/invalid tier, render-scale clamp, `withPreset` clearing overrides, `describe`, every panel string present in all nine locales). `tests/rules.test.mjs` (39 tests, no dependencies): deck composition and uniqueness; setup invariants; first discard never Wild Draw Four; seed determinism; legality (draw always offered, out-of-turn, color/rank/wild matching, explained mismatches, finished-round rejection); effects (skip, reverse incl. 2-player, draw2 pending and absorbed, stacking on/off, human wild waits for color, wild4 pending); monotonic turn numbers; scoring with breakdown; resign, move limit, rank ordering; malformed commands leave gameplay state untouched; illegal card counted; serialize round-trip, v1 migration, future version rejected; replay verification and tamper detection; 20 seeded games terminate; discard recycling; 400-command fuzz with no duplicate ownership; 40 stages with unique ids/seeds, 5 mastery stages, 5 themes, stable daily seeds, `validateAll` (every stage, daily window, challenge terminates; every lesson's required action is legal).
 
-`npm run test:e2e` (`tests/e2e.mjs`): at 1280×800 and 390×844 (touch) — page loads with zero console errors (GPU noise filtered), all ten globals exist, title has ≥ 5 buttons incl. Practice, practice setup renders selects, game shows 7 hand cards + discard + draw + turn label + color chip, a human action succeeds through the UI, pause opens/resumes, the round reaches results with a breakdown, Back to menu works, content integrity (40 stages, `j01`), settings/progress round-trip. Screenshots land in `/tmp/color-eights-e2e-*.png`.
+`npm run test:e2e` (`tests/e2e.mjs`): at 1280×800 and 390×844 (touch) — page loads with zero console errors or warnings (GPU noise filtered), all ten globals exist, title has ≥ 5 buttons incl. Practice, practice setup renders selects, game shows 7 hand cards + discard + draw + turn label + color chip, a human action succeeds through the UI, Settings → Graphics: Auto names the detected tier and resolves to Low headless, Low then High apply live (`data-gfx-preset`, summary shows 1024² shadows), a Bloom override applies live, the panel fits the viewport with Close reachable, preset + override survive reload, Auto clears overrides; Pause → Settings → Graphics → Ultra runs the post chain in game; pause opens/resumes, the round reaches results with a breakdown, Back to menu works, content integrity (40 stages, `j01`), settings/progress round-trip. Screenshots land in `/tmp/color-eights-e2e-*.png`.
 
 `npm run test:smoke` (`tests/smoke-screens.mjs`): journey grid has 40 stages, stage intro → game, save & quit → Resume round keeps stage title and draw count, lesson 1 rejects a wrong card and completes on the right one, settings rows ≥ 6 and palette persists, daily and a challenge start, Escape pauses and resumes.
 
@@ -254,7 +269,8 @@ The engine is prepared for hosted play — pure rules, idempotent command ids, s
 - The turn timer's "(Ns)" text only refreshes when the state changes; there is no ticking countdown or last-seconds cue.
 - Daily seeds use the local clock (server time offset is always 0), so a device with a wrong clock plays a different day.
 - `settings.controls` declares remappable bindings and `settings.audio.voice` a voice bus, but the keyboard handler uses fixed keys and no voice bus exists.
-- The 3D layer shows only the discard and the human hand as untextured colored slabs; opponents' hands, the draw pile and card faces are not drawn in 3D. Music is a static two-tone pad.
+- The human hand is DOM-only (no 3D hand), and the 3D piles sit under the DOM Draw/discard buttons rather than exactly aligned with them. Music is a static two-tone pad.
+- The Antialiasing "Off" tier only affects the post chain; the canvas keeps its native MSAA when no post effect runs.
 - `rankResults` and `invalidCounts` are engine-only; results show a single winner.
 - On a 390-px-wide phone the 7-card hand row touches the viewport edges (cards stay fully visible and tappable); 8+ cards wrap. Long labels ("Leaf Reverse", "Wild Draw Four") break mid-word inside the 64-px card.
 - Achievements, dailies and journey progress live only in this browser's localStorage.

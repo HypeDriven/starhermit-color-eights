@@ -47,7 +47,7 @@ async function runPass(browser, pass, viewport, hasTouch) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => {
-    if (m.type() === 'error' && !browserNoise.test(m.text())) errors.push(`console: ${m.text()}`);
+    if ((m.type() === 'error' || m.type() === 'warning') && !browserNoise.test(m.text())) errors.push(`console ${m.type()}: ${m.text()}`);
   });
   const port = server.address().port;
 
@@ -72,6 +72,60 @@ async function runPass(browser, pass, viewport, hasTouch) {
     if (audit.buttons < 5) throw new Error(`title menu has too few buttons: ${audit.buttons}`);
     if (!/practice/i.test(audit.text)) throw new Error('title menu missing Practice entry');
     await page.screenshot({ path: SHOT('title', pass) });
+  });
+
+  await step('graphics settings: presets, override, live apply, persistence', async () => {
+    const bodyPreset = () => page.evaluate(() => [document.body.dataset.gfxPreset, document.body.dataset.gfxAuto]);
+    const openGraphics = async () => {
+      await page.click('#ce-ui.ce-menu button:has-text("Settings")');
+      await page.click('[data-settings-tab="graphics"]');
+      await page.waitForSelector('#gfx-preset', { timeout: 5000 });
+    };
+    // Headless runs use a software GPU, so Auto resolves to Low.
+    let [p, auto] = await bodyPreset();
+    if (p !== 'low' || auto !== 'true') throw new Error(`auto preset expected low/auto, got ${p}/${auto}`);
+    await openGraphics();
+    const autoLabel = await page.textContent('#gfx-preset option[value="auto"]');
+    if (!/low/i.test(autoLabel)) throw new Error('auto option does not name the detected tier: ' + autoLabel);
+    await page.selectOption('#gfx-preset', 'low');
+    [p, auto] = await bodyPreset();
+    if (p !== 'low' || auto !== 'false') throw new Error(`Low not applied: ${p}/${auto}`);
+    await page.selectOption('#gfx-preset', 'high');
+    [p] = await bodyPreset();
+    if (p !== 'high') throw new Error('High not applied: ' + p);
+    const summary = await page.textContent('#gfx-summary');
+    if (!/1024² shadows/.test(summary) || !/px/.test(summary)) throw new Error('summary not updated for High: ' + summary);
+    if (!/From preset \(On\)/.test(await page.textContent('#gfx-bloom option[value="preset"]'))) throw new Error('bloom select lacks "From preset (On)"');
+    await page.selectOption('#gfx-bloom', 'off');
+    const live = await page.evaluate(() => ({ r: CERender.graphicsInfo().resolved, detailed: document.body.classList.contains('ce-gfx-detailed') }));
+    if (live.r.bloom !== 'off' || live.r.preset !== 'high' || !live.detailed) throw new Error('override not applied live: ' + JSON.stringify(live));
+    // panel fits the viewport width and its Close button is reachable
+    const fit = await page.evaluate(() => {
+      const panel = document.querySelector('.ce-overlay .ce-panel').getBoundingClientRect();
+      const close = [...document.querySelectorAll('.ce-overlay button')].find((b) => b.textContent === 'Close');
+      close.scrollIntoView();
+      const c = close.getBoundingClientRect();
+      return { left: panel.left, right: panel.right, vw: innerWidth, closeVisible: c.bottom <= innerHeight && c.top >= 0 };
+    });
+    if (fit.left < 0 || fit.right > fit.vw || !fit.closeVisible) throw new Error('graphics panel does not fit: ' + JSON.stringify(fit));
+    await page.screenshot({ path: SHOT('graphics', pass) });
+    await page.click('.ce-overlay button:has-text("Close")');
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: SHOT('title-high', pass) });
+    // survives reload
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#ce-ui.ce-menu', { timeout: 10000 });
+    [p, auto] = await bodyPreset();
+    if (p !== 'high' || auto !== 'false') throw new Error(`preset lost on reload: ${p}/${auto}`);
+    await openGraphics();
+    const kept = await page.evaluate(() => [document.getElementById('gfx-preset').value, document.getElementById('gfx-bloom').value]);
+    if (kept[0] !== 'high' || kept[1] !== 'off') throw new Error('graphics controls lost on reload: ' + kept);
+    // back to Auto: clears the override and keeps the rest of the run cheap
+    await page.selectOption('#gfx-preset', 'auto');
+    const back = await page.evaluate(() => [document.body.dataset.gfxPreset, document.getElementById('gfx-bloom').value, JSON.stringify(CEStore.loadSettings().graphics.gfx)]);
+    if (back[0] !== 'low' || back[1] !== 'preset' || back[2] !== '{"preset":"auto"}') throw new Error('Auto did not clear overrides: ' + back);
+    await page.click('.ce-overlay button:has-text("Close")');
+    await page.waitForSelector('.ce-overlay', { state: 'detached', timeout: 5000 });
   });
 
   await step('practice setup → start round through the UI', async () => {
@@ -123,6 +177,20 @@ async function runPass(browser, pass, viewport, hasTouch) {
     await page.waitForSelector('.ce-overlay', { timeout: 5000 });
     await page.screenshot({ path: SHOT('pause', pass) });
     await page.click('.ce-overlay button:has-text("Resume")');
+    await page.waitForSelector('.ce-overlay', { state: 'detached', timeout: 5000 });
+  });
+
+  await step('in-game Pause → Settings → Graphics: Ultra renders cleanly, back to Auto', async () => {
+    await page.click('button:has-text("Pause")');
+    await page.click('.ce-overlay button:has-text("Settings")');
+    await page.click('[data-settings-tab="graphics"]');
+    await page.selectOption('#gfx-preset', 'ultra');
+    await page.waitForTimeout(800); // a few frames through the full post chain
+    const info = await page.evaluate(() => ({ p: document.body.dataset.gfxPreset, post: CERender.hasPostFx(), failed: CERender.graphicsInfo().postFailed }));
+    if (info.p !== 'ultra') throw new Error('Ultra not applied in game: ' + JSON.stringify(info));
+    if (!info.post && !info.failed) throw new Error('Ultra should run the post chain: ' + JSON.stringify(info));
+    await page.selectOption('#gfx-preset', 'auto');
+    await page.click('.ce-overlay button:has-text("Close")');
     await page.waitForSelector('.ce-overlay', { state: 'detached', timeout: 5000 });
   });
 

@@ -51,7 +51,7 @@
 
   const DEFAULT_SETTINGS = {
     audio: { music: 0.6, effects: 0.8, ambience: 0.5, voice: 0.7, muted: false },
-    graphics: { tier: 'auto', renderScale: 1, reducedMotion: false, postFx: true },
+    graphics: { tier: 'auto', renderScale: 1, reducedMotion: false, postFx: true, gfx: { preset: 'auto' } },
     accessibility: {
       palette: 'standard',        // standard | contrast | deuteranopia | tritanopia
       largeText: false, highContrast: false, leftHanded: false,
