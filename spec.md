@@ -283,3 +283,7 @@ The engine is prepared for hosted play — pure rules, idempotent command ids, s
 - A ticking turn-timer display with a warning cue in the last three seconds.
 - Textured card faces (suit glyph + rank) and opponents' face-down hands in the Three.js scene; an ambience loop routed to the reserved `ambience` bus.
 - Hosted play through the StarHermit Games API using the existing replay envelope and idempotent command ids.
+
+## Browser interference
+
+`browser-guard.js` (loaded from `index.html`) suppresses browser UI that gets in the way of play: the right-click context menu, the iOS long-press callout, copy / cut / paste, and page text selection. Text fields (inputs, textareas, selects, contenteditable) keep normal selection, context menu and clipboard behaviour.
