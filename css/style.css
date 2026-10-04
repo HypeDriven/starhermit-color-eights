@@ -191,3 +191,10 @@ body.ce-gfx-detailed .ce-title-big, body.ce-gfx-detailed .ce-turn-label { text-s
   .ce-gfx-wide select { width:100%; max-width:100%; }
   .ce-gfx-wide .ce-gfx-scale { max-width:100%; }
 }
+
+/* StarHermit confirmation toast (invite link copied, signed out) */
+.ce-toast {
+  position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  z-index: 1000; max-width: min(92vw, 32em); padding: 10px 16px; border-radius: 10px; text-align: center;
+  background: rgba(20, 16, 28, 0.94); color: #fff; border: 1px solid rgba(255, 255, 255, 0.25);
+}

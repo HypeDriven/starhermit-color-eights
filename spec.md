@@ -32,6 +32,7 @@
 | `server.js` | Local static host (`PORT` env, default 8080); refuses `tests/`, `tools/`, `node_modules/` and dotfiles. |
 | `tests/rules.test.mjs` | 39 engine and content tests (`npm test`). |
 | `tests/gfx.test.mjs` | Graphics model + panel-locale unit tests (`node --test`, part of `npm test`). |
+| `tests/platform.test.mjs` | StarHermit adapter over the SDK with a stubbed fetch (`node --test`, part of `npm test`). |
 | `tests/e2e.mjs` | Playwright playthrough through the visible UI at desktop and mobile viewports (`npm run test:e2e`). |
 | `tests/smoke-screens.mjs` | Targeted screen smoke: journey, save/resume, lesson gating, settings, daily, challenges, keyboard. |
 | `starhermit.txt` | `name=Color Eights`, `launch=index.html`, `owner=…`, `server=server.js`, `cover=coverart.png`. |
@@ -213,21 +214,23 @@ The game ships in **English only**, except the Settings → Graphics tab (and it
 
 ## 12. StarHermit integration
 
-Conventions per https://wiki.starhermit.com/.
+Conventions per https://wiki.starhermit.com/. `index.html` loads `starhermit-sdk.js` (the canonical client, shipped unchanged) and calls `StarHermit.init()` before the game modules; `js/platform.js` (`window.CEPlatform`) is the game's adapter over `window.StarHermit`. Standalone (no token) the game makes no network requests.
 
 | Feature | Status |
 |---|---|
-| Packaging (`starhermit.txt`: name, launch, owner, cover, server) | Used. Launch path is `index.html`; cover is `coverart.png`. |
-| Identity / profile | Used when hosted. `#game_token=<jwt>` (fragment, stripped after read; query forms for local dev) is decoded for `sub` + `game_scope`, sent as `Authorization: Bearer`, re-minted every 45 min via `POST /api/v1/games/{slug}/launch-token` (60 s retry). The title menu shows "Playing as <nickname> · sync status" from `GET /api/v1/users/{sub}/profile` (never usernames, never `/api/v1/me`; `Player <id8>` fallback). Offline keeps the local guest profile and the offline status line. |
-| Presence, activity start/end | Not used. |
+| Packaging (`starhermit.txt`: name, launch, owner, cover, server, `control.*`) | Used. Launch path is `index.html`. |
+| Launch token / renewal | Used. The SDK reads `#game_token=<jwt>` (library launch) or `#access_token=` (sign-in return), strips it, keeps it in memory, takes the slug from `game_scope` and renews it via `POST /api/v1/games/{slug}/launch-token`. If renewal is refused a toast says the player was signed out, the title rebuilds with the sign-in button and play continues locally. |
+| Sign in | Used. On `*.starhermit.com` without a token the title shows **Sign in with StarHermit**; hidden when signed in and locally. |
+| Identity / profile | Used when signed in. The title shows "Playing as <nickname> · sync status" (`StarHermit.profile()`, `Player <id>` fallback, never `/api/v1/me`). Offline keeps the local guest profile and the offline status line. |
+| Cloud save | Used when signed in. The wrapped settings/progress documents mirror to `/api/v1/me/cloud-saves/game:<slug>`: remote wins on boot (checksum-validated through `CEStore.unwrap`), saves debounce 2 s and flush on `pagehide`/hidden. localStorage stays the offline cache. |
+| Settings KV | Used when signed in. The `audio`, `graphics`, `accessibility`, `camera` and `rulesOptions` groups are patched to the game's settings KV on change (debounced, after the KV was read) and merged over the saved settings at boot, where the platform value wins. |
+| Controls | Used. Cancel (Esc), pause (P), draw (D), hint (H) and undo (U) are declared as `control.*`; `loadBindings()` resolves the player's keys and keydown routes by `event.code` through them. |
+| Invite link | Used when signed in: **Invite a friend** on the title copies `StarHermit.inviteLink()` with a confirmation toast. |
 | Server time (`/api/v1/time`) | Not called. `CEPlatform.serverNow()` returns local time + 0 offset; the daily date is derived from it in UTC. |
-| Per-game settings / cloud save | Used when hosted. The wrapped settings/progress documents mirror to one zip+base64 slot at `GET/PUT /api/v1/me/cloud-saves/{slug}`: remote wins on boot (checksum-validated through `CEStore.unwrap`), saves debounce 2 s and flush on `pagehide`/hidden with keepalive. localStorage stays the offline cache. |
-| Leaderboards | Not used. Daily wins are recorded locally in `stats.dailyCompleted`. |
-| Achievements API | Not used. The five achievements are local and announced in-game. |
-| Sessions, invitations, matchmaking, chat, voice | Not used. Solo versus deterministic AI only. |
-| Game Script | `server=server.js` is declared, but `server.js` is a static file host, not an authoritative rules script. |
+| Leaderboards, achievements | Not used: `server.js` is a static file host, not a session script, so nothing reports platform scores or achievements. Daily wins and the five achievements stay local. |
+| Sessions, invitations to sessions, matchmaking, chat, replays, voice | Not used. Solo versus deterministic AI only. |
 
-The engine is prepared for hosted play — pure rules, idempotent command ids, serializable state, replay hashes — but no network path exists today.
+New platform strings (sign in, invite, toasts) ship in all nine locales (`js/platform-strings.js`, picked from `navigator.language`). The engine is prepared for hosted play — pure rules, idempotent command ids, serializable state, replay hashes — but no session path exists today.
 
 ## 13. Technical architecture
 
@@ -240,7 +243,7 @@ The engine is prepared for hosted play — pure rules, idempotent command ids, s
 
 ## 14. Testing and acceptance criteria
 
-`npm test` also runs `tests/gfx.test.mjs` (detectPreset on sample GPU strings incl. touch cap, resolve with auto/preset/override/invalid tier, render-scale clamp, `withPreset` clearing overrides, `describe`, every panel string present in all nine locales). `tests/rules.test.mjs` (39 tests, no dependencies): deck composition and uniqueness; setup invariants; first discard never Wild Draw Four; seed determinism; legality (draw always offered, out-of-turn, color/rank/wild matching, explained mismatches, finished-round rejection); effects (skip, reverse incl. 2-player, draw2 pending and absorbed, stacking on/off, human wild waits for color, wild4 pending); monotonic turn numbers; scoring with breakdown; resign, move limit, rank ordering; malformed commands leave gameplay state untouched; illegal card counted; serialize round-trip, v1 migration, future version rejected; replay verification and tamper detection; 20 seeded games terminate; discard recycling; 400-command fuzz with no duplicate ownership; 40 stages with unique ids/seeds, 5 mastery stages, 5 themes, stable daily seeds, `validateAll` (every stage, daily window, challenge terminates; every lesson's required action is legal).
+`npm test` also runs `tests/platform.test.mjs` (the adapter over the shipped SDK with a stubbed fetch and launch fragment: token claims, fragment stripped, nickname, cloud-save round-trip on `game:<slug>`, settings patch filtered to preference groups, bindings, invite link; standalone makes zero fetches) and `tests/gfx.test.mjs` (detectPreset on sample GPU strings incl. touch cap, resolve with auto/preset/override/invalid tier, render-scale clamp, `withPreset` clearing overrides, `describe`, every panel string present in all nine locales). `tests/rules.test.mjs` (39 tests, no dependencies): deck composition and uniqueness; setup invariants; first discard never Wild Draw Four; seed determinism; legality (draw always offered, out-of-turn, color/rank/wild matching, explained mismatches, finished-round rejection); effects (skip, reverse incl. 2-player, draw2 pending and absorbed, stacking on/off, human wild waits for color, wild4 pending); monotonic turn numbers; scoring with breakdown; resign, move limit, rank ordering; malformed commands leave gameplay state untouched; illegal card counted; serialize round-trip, v1 migration, future version rejected; replay verification and tamper detection; 20 seeded games terminate; discard recycling; 400-command fuzz with no duplicate ownership; 40 stages with unique ids/seeds, 5 mastery stages, 5 themes, stable daily seeds, `validateAll` (every stage, daily window, challenge terminates; every lesson's required action is legal).
 
 `npm run test:e2e` (`tests/e2e.mjs`): at 1280×800 and 390×844 (touch) — page loads with zero console errors or warnings (GPU noise filtered), all ten globals exist, title has ≥ 5 buttons incl. Practice, practice setup renders selects, game shows 7 hand cards + discard + draw + turn label + color chip, a human action succeeds through the UI, Settings → Graphics: Auto names the detected tier and resolves to Low headless, Low then High apply live (`data-gfx-preset`, summary shows 1024² shadows), a Bloom override applies live, the panel fits the viewport with Close reachable, preset + override survive reload, Auto clears overrides; Pause → Settings → Graphics → Ultra runs the post chain in game; pause opens/resumes, the round reaches results with a breakdown, Back to menu works, content integrity (40 stages, `j01`), settings/progress round-trip. Screenshots land in `/tmp/color-eights-e2e-*.png`.
 

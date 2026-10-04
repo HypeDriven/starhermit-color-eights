@@ -30,6 +30,14 @@
   /* ---------------- helpers ---------------- */
   function el(tag, cls, text) { return global.CEUI.el(tag, cls, text); }
   function announce(t) { global.CEUI.announce(t); }
+  const PT = global.PlatformStrings.platformStrings(global.navigator ? global.navigator.language : 'en-US');
+  // Short visual confirmation (invite link copied, signed out).
+  function toast(text) {
+    const t = el('div', 'ce-toast', text);
+    t.setAttribute('role', 'status');
+    doc().body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+  }
   function sfx(name) { try { global.CEAudio.playSfx(name); } catch (e) {} }
 
   function btn(label, cls, onClick) {
@@ -104,16 +112,31 @@
         global.CEPlatform.fetchProfile().then(renderAccountLine).catch(() => {});
         global.CEPlatform.onSync(renderAccountLine);
       } catch (e) { /* ok */ }
+      // Cloud slot first (remote wins), then the settings KV (platform value
+      // wins over saved preferences).
       global.CEPlatform.loadCloud().then((remote) => {
-        if (!remote) return;
         const S = global.CEStore;
-        const rs = remote.settings && S.unwrap(remote.settings, S.SETTINGS_VERSION);
-        const rp = remote.progress && S.unwrap(remote.progress, S.PROGRESS_VERSION);
-        if (rs) { settings = S.loadSettings(); S.saveSettings(Object.assign(settings, rs)); }
-        if (rp) { progress = S.loadProgress(); S.saveProgress(Object.assign(progress, rp)); }
+        if (remote) {
+          const rs = remote.settings && S.unwrap(remote.settings, S.SETTINGS_VERSION);
+          const rp = remote.progress && S.unwrap(remote.progress, S.PROGRESS_VERSION);
+          if (rs) { settings = S.loadSettings(); S.saveSettings(Object.assign(settings, rs)); }
+          if (rp) { progress = S.loadProgress(); S.saveProgress(Object.assign(progress, rp)); }
+        }
+        return global.CEPlatform.getSettings();
+      }).then((kv) => {
+        if (kv && Object.keys(kv).length) {
+          settings = global.CEStore.mergeDeep(global.CEStore.loadSettings(), kv);
+          global.CEStore.saveSettings(settings);
+        }
         applySettings();
       }).catch(() => {});
     }
+    global.CEPlatform.loadBindings().catch(() => {});
+    global.CEPlatform.onAuth((a) => {
+      if (a.signedIn) return;
+      toast(PT.signedOut);
+      if (doc().querySelector('.ce-menu-inner')) titleScreen();
+    });
 
     const canvas = doc().getElementById('ce-canvas');
     try {
@@ -196,6 +219,19 @@
     wrap.appendChild(btn('Challenges', null, challengesScreen));
     wrap.appendChild(btn('Learn', null, learnScreen));
     wrap.appendChild(btn('Settings', null, () => showOverlay(settingsPanel())));
+    const P = global.CEPlatform;
+    if (P.hosted) {
+      const inv = btn(PT.invite, null, () => {
+        P.copyInvite().then((ok) => { const m = ok ? PT.inviteCopied : PT.inviteFailed; toast(m); announce(m); });
+      });
+      inv.id = 'ce-invite';
+      wrap.appendChild(inv);
+    }
+    if (P.canSignIn()) {
+      const sib = btn(PT.signIn, 'ce-btn-primary', () => P.signIn());
+      sib.id = 'ce-signin';
+      wrap.appendChild(sib);
+    }
 
     global.CEUI.append(wrap);
     const first = wrap.querySelector('button');
@@ -989,8 +1025,8 @@
 
   /* ---------------- keyboard ---------------- */
   function onKey(e) {
-    const code = e.code;
-    if (code === 'Escape') {
+    const act = global.CEPlatform.actionFor(e); // StarHermit control bindings
+    if (act === 'cancel') {
       if (overlayEl) {
         if (!overlayMandatory) {
           clearOverlay();
@@ -1002,10 +1038,10 @@
       return;
     }
     if (!session || session.finished || overlayEl || !doc().querySelector('.ce-game')) return;
-    if (code === 'KeyP') pauseOverlay();
-    else if (code === 'KeyD') tryDraw();
-    else if (code === 'KeyH') showHint();
-    else if (code === 'KeyU') doUndo();
+    if (act === 'pause') pauseOverlay();
+    else if (act === 'draw') tryDraw();
+    else if (act === 'hint') showHint();
+    else if (act === 'undo') doUndo();
   }
 
   global.CEApp = { boot };

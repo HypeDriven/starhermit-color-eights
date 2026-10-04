@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/rules.test.mjs && node --test tests/gfx.test.mjs",
+    "test": "node tests/rules.test.mjs && node --test tests/gfx.test.mjs tests/platform.test.mjs",
     "test:e2e": "node tests/e2e.mjs",
     "test:smoke": "node tests/smoke-screens.mjs"
   },

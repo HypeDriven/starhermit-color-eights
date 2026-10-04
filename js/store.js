@@ -24,6 +24,7 @@
       if ((key === 'settings' || key === 'progress') && global.CEPlatform && global.CEPlatform.hosted) {
         try {
           global.CEPlatform.saveCloud({ settings: get('settings', null), progress: get('progress', null) });
+          if (key === 'settings') global.CEPlatform.mirrorSettings(unwrap(val, SETTINGS_VERSION) || {});
         } catch (e) { /* mirror errors never break saves */ }
       }
       return true;
@@ -59,12 +60,7 @@
       captions: true, screenReaderCues: true,
     },
     camera: { view: 'table' },    // table | low
-    controls: {
-      // declared desktop defaults; player overrides merge on top
-      confirm: 'Enter', cancel: 'Escape', pause: 'KeyP', draw: 'KeyD',
-      hint: 'KeyH', undo: 'KeyU', cameraReset: 'KeyC',
-      navLeft: 'ArrowLeft', navRight: 'ArrowRight', navUp: 'ArrowUp', navDown: 'ArrowDown',
-    },
+    // keyboard bindings: StarHermit controls via CEPlatform.loadBindings()
     rulesOptions: { stacking: false, drawToMatch: false },
     tutorialDone: {},
     consent: { telemetry: false },
