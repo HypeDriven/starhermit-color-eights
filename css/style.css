@@ -7,8 +7,11 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0c0a0e; f
 .ce-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 
 .ce-screen { position: absolute; inset: 0; z-index: 2; pointer-events: auto; }
+/* Large screens: the DOM UI layer and toast zoom by --ui-scale (ui-scale.js; 1 up to 1600x1000);
+   vh/vw lengths inside them are divided by it. The full-viewport 3D canvas is not zoomed. */
+#ce-ui, .ce-toast, #ce-fps { zoom: var(--ui-scale, 1); }
 
-.ce-boot p { padding-top: 4vh; text-align: center; font-size: clamp(18px,3vw,26px); color:#cfc7bd; }
+.ce-boot p { padding-top: calc(4vh / var(--ui-scale, 1)); text-align: center; font-size: clamp(18px,3vw,26px); color:#cfc7bd; }
 
 /* top bar */
 .ce-header { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.9rem .9rem 0; position:relative; z-index:4;}
@@ -41,7 +44,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0c0a0e; f
 
 /* overlays */
 .ce-overlay { position:absolute; inset:0; z-index:6; background:#0c0a0ecc; display:flex; justify-content:center; align-items:flex-start; overflow:auto;}
-.ce-panel { width:min(92vw,780px); margin-top:5vh;}
+.ce-panel { width:min(calc(92vw / var(--ui-scale, 1)),780px); margin-top:calc(5vh / var(--ui-scale, 1));}
 .ce-panel h1,.ce-panel h2{font-size:clamp(20px,3.4vw,30px);margin-bottom:.6rem;font-weight:700;}
 .ce-panel p{font-size:clamp(14px,2vw,18px);color:#e9dfd5;line-height:1.5;margin-bottom:.5rem;}
 
@@ -54,8 +57,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0c0a0e; f
 
 /* ---------- menus ---------- */
 .ce-menu { display:flex; justify-content:center; overflow:auto; background:linear-gradient(180deg,#0c0a0e88,#0c0a0e66); }
-.ce-menu-inner { display:flex; flex-direction:column; gap:.7rem; align-items:stretch; width:min(92vw,460px); padding:6vh 0 8vh; }
-.ce-menu-inner.ce-wide { width:min(94vw,880px); }
+.ce-menu-inner { display:flex; flex-direction:column; gap:.7rem; align-items:stretch; width:min(calc(92vw / var(--ui-scale, 1)),460px); padding:calc(6vh / var(--ui-scale, 1)) 0 calc(8vh / var(--ui-scale, 1)); }
+.ce-menu-inner.ce-wide { width:min(calc(94vw / var(--ui-scale, 1)),880px); }
 .ce-menu-inner h1 { font-size:clamp(26px,4.5vw,40px); font-weight:700; text-align:center; }
 .ce-title-big { letter-spacing:.02em; }
 .ce-tagline { text-align:center; color:#d9cec2; font-size:clamp(14px,2.2vw,18px); line-height:1.5; max-width:70ch; align-self:center; }
@@ -101,8 +104,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0c0a0e; f
 .ce-goal-line { color:#ffcf4d; font-weight:600; text-align:center; }
 
 /* ---------- illustrations (decorative; removed on load error) ---------- */
-.ce-key-art { display:block; width:100%; height:clamp(120px,26vh,300px); object-fit:cover; border-radius:1rem; box-shadow:0 8px 28px #000a; margin-bottom:.2rem; }
-.ce-results-art { display:block; width:min(100%,520px); height:clamp(100px,22vh,240px); object-fit:cover; border-radius:.9rem; box-shadow:0 6px 22px #000a; align-self:center; }
+.ce-key-art { display:block; width:100%; height:clamp(120px,calc(26vh / var(--ui-scale, 1)),300px); object-fit:cover; border-radius:1rem; box-shadow:0 8px 28px #000a; margin-bottom:.2rem; }
+.ce-results-art { display:block; width:min(100%,520px); height:clamp(100px,calc(22vh / var(--ui-scale, 1)),240px); object-fit:cover; border-radius:.9rem; box-shadow:0 6px 22px #000a; align-self:center; }
 @media (max-height:560px) { .ce-key-art { height:96px; } .ce-results-art { display:none; } }
 
 /* ---------- accessibility variants ---------- */
@@ -138,7 +141,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0c0a0e; f
 .ce-tab { flex:1; }
 .ce-tabs .ce-tab.ce-tab-active, .ce-tabs .ce-tab.ce-tab-active:hover:not(:disabled) { background:#ff7a4d; color:#1c0d08; font-weight:700; }
 .ce-contrast .ce-tabs .ce-tab.ce-tab-active, .ce-contrast .ce-tabs .ce-tab.ce-tab-active:hover:not(:disabled) { background:#ffcf4d; color:#000; }
-.ce-settings-panel { margin-bottom:5vh; }
+.ce-settings-panel { margin-bottom:calc(5vh / var(--ui-scale, 1)); }
 .ce-settings-row .ce-settings-label { flex:1 1 auto; min-width:0; }
 .ce-gfx-row select { max-width:58%; min-width:44px; }
 .ce-gfx-scale { display:flex; align-items:center; gap:.5rem; flex:1; justify-content:flex-end; max-width:60%; }
@@ -195,6 +198,6 @@ body.ce-gfx-detailed .ce-title-big, body.ce-gfx-detailed .ce-turn-label { text-s
 /* StarHermit confirmation toast (invite link copied, signed out) */
 .ce-toast {
   position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translateX(-50%);
-  z-index: 1000; max-width: min(92vw, 32em); padding: 10px 16px; border-radius: 10px; text-align: center;
+  z-index: 1000; max-width: min(calc(92vw / var(--ui-scale, 1)), 32em); padding: 10px 16px; border-radius: 10px; text-align: center;
   background: rgba(20, 16, 28, 0.94); color: #fff; border: 1px solid rgba(255, 255, 255, 0.25);
 }
