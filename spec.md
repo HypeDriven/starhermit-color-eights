@@ -229,7 +229,7 @@ Conventions per https://wiki.starhermit.com/. `index.html` loads `starhermit-sdk
 | Controls | Used. Cancel (Esc), pause (P), draw (D), hint (H) and undo (U) are declared as `control.*`; `loadBindings()` resolves the player's keys and keydown routes by `event.code` through them. |
 | Invite link | Used when signed in: **Invite a friend** on the title copies `StarHermit.inviteLink()` with a confirmation toast. |
 | Server time (`/api/v1/time`) | Not called. `CEPlatform.serverNow()` returns local time + 0 offset; the daily date is derived from it in UTC. |
-| Leaderboards | Used when signed in. Every round the player wins (any mode except Learn) posts its points total through `StarHermit.submitScores` (a practice session whose `score-script.js` posts it to the `high-score` board: integer, higher is better, 0–1,000,000), and the results screen shows "Leaderboard rank: #N" (or posted / not posted). Lost rounds and standalone play post nothing and show no line. |
+| Leaderboards | Used when signed in. Every round the player wins in Journey, Daily Challenge or Challenges (not the unranked Practice or Learn) posts its points total through `StarHermit.submitScores` (a practice session whose `score-script.js` posts it to the `high-score` board: integer, higher is better, 0–1,000,000), and the results screen shows "Leaderboard rank: #N" (or posted / not posted). Lost rounds and standalone play post nothing and show no line. |
 | Achievements | Not used: daily wins and the five achievements stay local. |
 | Sessions, invitations to sessions, matchmaking, chat, replays, voice | Not used (apart from the one-message practice session that posts a score). Solo versus deterministic AI only. |
 

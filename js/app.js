@@ -1006,7 +1006,7 @@
       list.appendChild(li);
     }
     wrap.appendChild(list);
-    if (humanWon && mode !== 'learn' && global.CEPlatform.hosted) {
+    if (humanWon && mode !== 'learn' && mode !== 'practice' && global.CEPlatform.hosted) {
       // StarHermit high-score board: a won round's points.
       const lb = el('p', 'ce-goal-line ce-lb-line', PT.lbPosting);
       lb.setAttribute('aria-live', 'polite');
