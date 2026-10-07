@@ -1006,6 +1006,16 @@
       list.appendChild(li);
     }
     wrap.appendChild(list);
+    if (humanWon && mode !== 'learn' && global.CEPlatform.hosted) {
+      // StarHermit high-score board: a won round's points.
+      const lb = el('p', 'ce-goal-line ce-lb-line', PT.lbPosting);
+      lb.setAttribute('aria-live', 'polite');
+      wrap.appendChild(lb);
+      global.CEPlatform.submitScore(st.scores.total).then((r) => {
+        lb.textContent = !r.posted ? PT.lbNotPosted
+          : r.rank ? global.PlatformStrings.fmtPlatform(PT.lbRank, { rank: r.rank }) : PT.lbPosted;
+      });
+    }
 
     wrap.appendChild(btn('Play again', 'ce-btn-primary', restartRound));
     if (mode === 'journey' && modeCtx) {

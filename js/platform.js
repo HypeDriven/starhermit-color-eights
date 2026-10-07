@@ -140,7 +140,22 @@
     return signedIn();
   }
 
+  // Post a won round's points to the high-score board (score-script.js);
+  // resolves { posted, rank } — rank on the board, or null.
+  function submitScore(total) {
+    const s = sdk();
+    if (!s || !signedIn() || typeof s.submitScores !== 'function') return Promise.resolve({ posted: false, rank: null });
+    return s.submitScores({ 'high-score': total }).then((keys) => {
+      if (!keys || keys.indexOf('high-score') < 0) return { posted: false, rank: null };
+      return s.leaderboard('high-score', { pageSize: 100 }).then((r) => {
+        const me = ((r && r.items) || []).find((i) => i.userId === s.userId);
+        return { posted: true, rank: me ? me.rank : null };
+      }, () => ({ posted: true, rank: null }));
+    }, () => ({ posted: false, rank: null }));
+  }
+
   global.CEPlatform = {
+    submitScore,
     setTokens(o) {
       if (o && o.access != null) accessToken = o.access;
       if (o && o.launch != null && sdk()) sdk().setToken(o.launch);

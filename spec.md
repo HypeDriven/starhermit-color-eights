@@ -30,13 +30,14 @@
 | `css/style.css` | Dark lounge theme, responsive layout, accessibility variants, illustration styling. |
 | `assets/` | `key-art.webp` (title), `results-win.webp`, `results-lose.webp`. |
 | `sfx/` | 24 Opus clips, `manifest.txt` (canonical), `manifest.json` (loader + generator input), `manifest.md` (generated). |
+| `score-script.js` | StarHermit platform script (`server=`): range-checks a won round's points sent through `StarHermit.submitScores` and posts them to the `high-score` leaderboard (canonical copy in the games repo's `tools/score-script.js`). |
 | `server.js` | Local static host (`PORT` env, default 8080); refuses `tests/`, `tools/`, `node_modules/` and dotfiles. |
 | `tests/rules.test.mjs` | 39 engine and content tests (`npm test`). |
 | `tests/gfx.test.mjs` | Graphics model + panel-locale unit tests (`node --test`, part of `npm test`). |
 | `tests/platform.test.mjs` | StarHermit adapter over the SDK with a stubbed fetch (`node --test`, part of `npm test`). |
 | `tests/e2e.mjs` | Playwright playthrough through the visible UI at desktop and mobile viewports (`npm run test:e2e`). |
 | `tests/smoke-screens.mjs` | Targeted screen smoke: journey, save/resume, lesson gating, settings, daily, challenges, keyboard. |
-| `starhermit.txt` | `name=Color Eights`, `launch=index.html`, `owner=…`, `server=server.js`, `cover=coverart.png`. |
+| `starhermit.txt` | `name=Color Eights`, `launch=index.html`, `owner=…`, `server=score-script.js`, `cover=coverart.png`. |
 | `coverart.png`, `icon.png`, `favicon.svg` | Store art (1200×675), 256×256 icon, SVG favicon of two tilted cards. |
 | `vendor/three.module.js` | Three.js r160 (MIT). |
 | `vendor/three/addons/` | Same-revision (0.160.1) addons: EffectComposer, RenderPass, ShaderPass, OutputPass, GTAOPass, UnrealBloomPass, SMAAPass, FXAAShader, RoomEnvironment and their shader/math dependencies. |
@@ -228,10 +229,11 @@ Conventions per https://wiki.starhermit.com/. `index.html` loads `starhermit-sdk
 | Controls | Used. Cancel (Esc), pause (P), draw (D), hint (H) and undo (U) are declared as `control.*`; `loadBindings()` resolves the player's keys and keydown routes by `event.code` through them. |
 | Invite link | Used when signed in: **Invite a friend** on the title copies `StarHermit.inviteLink()` with a confirmation toast. |
 | Server time (`/api/v1/time`) | Not called. `CEPlatform.serverNow()` returns local time + 0 offset; the daily date is derived from it in UTC. |
-| Leaderboards, achievements | Not used: `server.js` is a static file host, not a session script, so nothing reports platform scores or achievements. Daily wins and the five achievements stay local. |
-| Sessions, invitations to sessions, matchmaking, chat, replays, voice | Not used. Solo versus deterministic AI only. |
+| Leaderboards | Used when signed in. Every round the player wins (any mode except Learn) posts its points total through `StarHermit.submitScores` (a practice session whose `score-script.js` posts it to the `high-score` board: integer, higher is better, 0–1,000,000), and the results screen shows "Leaderboard rank: #N" (or posted / not posted). Lost rounds and standalone play post nothing and show no line. |
+| Achievements | Not used: daily wins and the five achievements stay local. |
+| Sessions, invitations to sessions, matchmaking, chat, replays, voice | Not used (apart from the one-message practice session that posts a score). Solo versus deterministic AI only. |
 
-New platform strings (sign in, invite, toasts) ship in all nine locales (`js/platform-strings.js`, picked from `navigator.language`). The engine is prepared for hosted play — pure rules, idempotent command ids, serializable state, replay hashes — but no session path exists today.
+New platform strings (sign in, invite, toasts, the results leaderboard line) ship in all nine locales (`js/platform-strings.js`, picked from `navigator.language`). The engine is prepared for hosted play — pure rules, idempotent command ids, serializable state, replay hashes — but no session path exists today.
 
 ## 13. Technical architecture
 
@@ -282,7 +284,7 @@ New platform strings (sign in, invite, toasts) ship in all nine locales (`js/pla
 ## 17. Design intent not yet implemented
 
 - Localized strings for en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it-IT with a language selector and a string table outside `app.js`.
-- Server-time sync for the daily boundary, daily/weekly leaderboards with seed + ruleset + assists, and achievement unlock submission (identity and cloud-saved settings/progress are done).
+- Server-time sync for the daily boundary, per-daily/weekly leaderboards with seed + ruleset + assists, and achievement unlock submission (identity and cloud-saved settings/progress are done).
 - Enforce the *Perfect Flow* no-draw condition and show goal progress in the challenge header.
 - A ticking turn-timer display with a warning cue in the last three seconds.
 - Textured card faces (suit glyph + rank) and opponents' face-down hands in the Three.js scene; an ambience loop routed to the reserved `ambience` bus.
