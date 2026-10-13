@@ -59,7 +59,7 @@
 
   function playBuffer(buffer) {
     const c = ensureCtx();
-    const src = c.createBufferSource();
+    const src = (globalThis.GameOptions ? globalThis.GameOptions.trackSource(c.createBufferSource(), null) : c.createBufferSource());
     src.buffer = buffer;
     src.connect(sfxGain);
     src.onended = () => { try { src.disconnect(); } catch (e) {} };
@@ -102,7 +102,7 @@
 
   function blip(freq, dur, type, gain) {
     const c = ensureCtx();
-    const o = c.createOscillator(), g = c.createGain();
+    const o = (globalThis.GameOptions ? globalThis.GameOptions.trackSource(c.createOscillator(), null) : c.createOscillator()), g = c.createGain();
     o.type = type || 'sine'; o.frequency.value = freq;
     g.gain.setValueAtTime(gain != null ? gain : 0.2, c.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
@@ -153,7 +153,7 @@
     applyBusVolumes();
     // simple ambient pad loop
     musicNodes = [261.63, 329.63].map((f, i) => {
-      const o = c.createOscillator(), g = c.createGain();
+      const o = (globalThis.GameOptions ? globalThis.GameOptions.trackSource(c.createOscillator(), null) : c.createOscillator()), g = c.createGain();
       o.type = 'sine'; o.frequency.value = f;
       g.gain.value = 0.08 + i * 0.02;
       o.connect(g); g.connect(musGain);

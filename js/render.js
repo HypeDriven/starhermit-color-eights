@@ -554,8 +554,8 @@
     const key = q.post && global.CEPost ? [q.ao, q.bloom, q.grade, q.antialias, w, h, pixelRatio].join('|') : 'none';
     if (key !== postKey) { postKey = key; buildPost(w, h); }
     if (gradePass) gradePass.uniforms.uAmount.value = 1;
-    if (composer) composer.render(dt / 1000);
-    else renderer.render(scene, camera);
+    if (composer) (globalThis.GameOptions ? globalThis.GameOptions.draw(composer.renderer, () => composer.render(dt / 1000)) : composer.render(dt / 1000));
+    else (globalThis.GameOptions ? globalThis.GameOptions.draw(renderer, () => renderer.render(scene, camera)) : renderer.render(scene, camera));
   }
   function start() { if (rafId == null && renderer) rafId = global.requestAnimationFrame(frame); }
   function stop() {
