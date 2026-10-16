@@ -19,18 +19,33 @@
 
   const SHAPE_GLYPH = { diamond: '◆', wave: '≈', leaf: '♣', sun: '☀' };
 
+  // Localization (js/i18n.js, window.CEI18N): English source strings are the
+  // keys. T() translates now; N() only marks a string for display-time T().
+  function T(key, vars) {
+    if (global.CEI18N) return global.CEI18N.T(key, vars);
+    return String(key).replace(/\{(\w+)\}/g, (m, k) => (vars && k in vars ? String(vars[k]) : m));
+  }
+  const N = (key) => key;
+  const curLang = () => (global.CEI18N && global.CEI18N.lang) || (global.navigator ? global.navigator.language : 'en-US');
+
   const ACHIEVEMENTS = {
-    'first-win': 'Win your first round',
-    'all-lessons': 'Complete every lesson',
-    'journey-mastery': 'Complete a journey mastery stage',
-    'streak-3': 'Win three rounds in a row',
-    'century': 'Score 100+ points in one round',
+    'first-win': N('Win your first round'),
+    'all-lessons': N('Complete every lesson'),
+    'journey-mastery': N('Complete a journey mastery stage'),
+    'streak-3': N('Win three rounds in a row'),
+    'century': N('Score 100+ points in one round'),
   };
+
+  // Re-render hooks for a language change: the current screen and overlay.
+  let screenRender = null;   // () => void, rebuilds the visible screen in place
+  let overlayRebuild = null; // () => panel, rebuilds the open overlay's panel
+  let settingsTab = 'general';
+  const practicePrefs = { players: '2', level: 'medium', undo: true };
 
   /* ---------------- helpers ---------------- */
   function el(tag, cls, text) { return global.CEUI.el(tag, cls, text); }
   function announce(t) { global.CEUI.announce(t); }
-  const PT = global.PlatformStrings.platformStrings(global.navigator ? global.navigator.language : 'en-US');
+  let PT = global.PlatformStrings.platformStrings(curLang()); // StarHermit strings in the game language
   // Short visual confirmation (invite link copied, signed out).
   function toast(text) {
     const t = el('div', 'ce-toast', text);
@@ -73,15 +88,25 @@
     if (!card || !card.color) return '★';
     return SHAPE_GLYPH[global.CERules.COLOR_INFO[card.color].shape] || '';
   }
-  function colorLabel(c) { return global.CERules.COLOR_INFO[c].label; }
+  function colorLabel(c) { return T(global.CERules.COLOR_INFO[c].label); }
+  // Card names in the game language (rules keep English labels for logs/replays).
+  function cardLabel(card) {
+    if (!card) return T('none');
+    const R = global.CERules;
+    if (card.kind === 'number') return T('{color} {rank}', { color: colorLabel(card.color), rank: card.rank });
+    if (card.kind === 'wild' || card.kind === 'wild4') return T(R.KIND_LABEL[card.kind]);
+    return T('{color} {kind}', { color: colorLabel(card.color), kind: T(R.KIND_LABEL[card.kind]) });
+  }
 
   function clearOverlay() {
     if (overlayEl && overlayEl.parentNode) overlayEl.parentNode.removeChild(overlayEl);
     overlayEl = null;
     overlayMandatory = false;
+    overlayRebuild = null;
   }
-  function showOverlay(panel, mandatory) {
+  function showOverlay(panel, mandatory, rebuild) {
     clearOverlay();
+    overlayRebuild = rebuild || null;
     overlayEl = el('div', 'ce-overlay');
     overlayEl.setAttribute('role', 'dialog');
     overlayEl.appendChild(panel);
@@ -131,6 +156,15 @@
         applySettings();
       }).catch(() => {});
     }
+    // Save conflict: merge the newer cloud progress into this device's and
+    // save the merge (CEStore.mergeProgress keeps the better of both).
+    global.CEPlatform.onConflict((remote) => {
+      const S = global.CEStore;
+      const rp = remote && remote.progress && S.unwrap(remote.progress, S.PROGRESS_VERSION);
+      if (rp) progress = S.mergeProgress(progress, rp);
+      S.saveProgress(progress);
+      if (screenRender && screenRender !== renderGame && !session) screenRender();
+    });
     global.CEPlatform.loadBindings().catch(() => {});
     global.CEPlatform.onAuth((a) => {
       if (a.signedIn) return;
@@ -149,7 +183,7 @@
       const ui = doc().getElementById('ce-ui');
       ui.className = 'ce-screen ce-boot';
       ui.innerHTML = '';
-      const p = el('p', null, 'Color Eights needs WebGL, which is unavailable in this browser. Your settings and progress are preserved.');
+      const p = el('p', null, T('Color Eights needs WebGL, which is unavailable in this browser. Your settings and progress are preserved.'));
       ui.appendChild(p);
       return;
     }
@@ -198,6 +232,7 @@
 
   /* ---------------- title / menus ---------------- */
   function titleScreen() {
+    screenRender = titleScreen;
     teardownSession();
     global.CERender.applyTheme(global.CEContent.THEMES[global.CEContent.DEFAULT_THEME]);
     global.CERender.syncState(null);
@@ -207,18 +242,18 @@
     const wrap = el('div', 'ce-menu-inner');
     wrap.appendChild(artImage('assets/key-art.webp', 'ce-key-art'));
     wrap.appendChild(el('h1', 'ce-title-big', 'Color Eights'));
-    wrap.appendChild(el('p', 'ce-tagline', 'Match the discard by color or rank. Empty your hand first.'));
+    wrap.appendChild(el('p', 'ce-tagline', T('Match the discard by color or rank. Empty your hand first.')));
     wrap.appendChild(accountLine());
 
     const snap = resumeSnapshot();
-    if (snap) wrap.appendChild(btn('Resume round', 'ce-btn-primary', () => resumeFrom(snap)));
+    if (snap) wrap.appendChild(btn(T('Resume round'), 'ce-btn-primary', () => resumeFrom(snap)));
 
-    wrap.appendChild(btn('Practice', 'ce-btn-primary', practiceSetupScreen));
-    wrap.appendChild(btn('Journey', null, journeyScreen));
-    wrap.appendChild(btn('Daily Challenge', null, startDaily));
-    wrap.appendChild(btn('Challenges', null, challengesScreen));
-    wrap.appendChild(btn('Learn', null, learnScreen));
-    wrap.appendChild(btn('Settings', null, () => showOverlay(settingsPanel())));
+    wrap.appendChild(btn(T('Practice'), 'ce-btn-primary', practiceSetupScreen));
+    wrap.appendChild(btn(T('Journey'), null, journeyScreen));
+    wrap.appendChild(btn(T('Daily Challenge'), null, startDaily));
+    wrap.appendChild(btn(T('Challenges'), null, challengesScreen));
+    wrap.appendChild(btn(T('Learn'), null, learnScreen));
+    wrap.appendChild(btn(T('Settings'), null, openSettings));
     const P = global.CEPlatform;
     if (P.hosted) {
       const inv = btn(PT.invite, null, () => {
@@ -236,7 +271,7 @@
     global.CEUI.append(wrap);
     const first = wrap.querySelector('button');
     if (first) first.focus();
-    announce('Color Eights main menu');
+    announce(T('Color Eights main menu'));
   }
 
   // Account + cloud-sync status line on the title menu. Offline keeps the
@@ -252,14 +287,14 @@
     const node = doc().getElementById('ce-account');
     if (!node || !P) return;
     if (!P.hosted) {
-      node.textContent = 'Offline — progress is stored on this device.';
+      node.textContent = T('Offline — progress is stored on this device.');
       return;
     }
     const name = P.profile ? P.profile.name : '…';
-    const syncTxt = P.sync === 'synced' ? 'progress synced'
-      : P.sync === 'saving' ? 'saving…'
-      : 'cloud sync unavailable';
-    node.textContent = 'Playing as ' + name + ' · ' + syncTxt;
+    const syncTxt = P.sync === 'synced' ? T('progress synced')
+      : P.sync === 'saving' ? T('saving…')
+      : T('cloud sync unavailable');
+    node.textContent = T('Playing as {name} · {sync}', { name, sync: syncTxt });
   }
 
   function resumeSnapshot() {
@@ -289,19 +324,26 @@
   }
 
   function practiceSetupScreen() {
+    screenRender = practiceSetupScreen;
     global.CEUI.setScreen('ce-menu');
     global.CEUI.clear();
     const wrap = el('div', 'ce-menu-inner');
-    wrap.appendChild(el('h1', null, 'Practice'));
-    wrap.appendChild(el('p', 'ce-tagline', 'Unranked. Optional undo assist.'));
+    wrap.appendChild(el('h1', null, T('Practice')));
+    wrap.appendChild(el('p', 'ce-tagline', T('Unranked. Optional undo assist.')));
 
-    const playersSel = selectField(wrap, 'Players', ['2', '3', '4'], '2');
-    const levelSel = selectField(wrap, 'Opponent skill', ['easy', 'medium', 'hard'], 'medium');
-    const stackingChk = checkField(wrap, 'Stacking (Draw cards stack)', settings.rulesOptions.stacking);
-    const dtmChk = checkField(wrap, 'Draw-to-match (draw up to 3)', settings.rulesOptions.drawToMatch);
-    const undoChk = checkField(wrap, 'Undo assist', true);
+    const playersSel = selectField(wrap, T('Players'), [['2', '2'], ['3', '3'], ['4', '4']], practicePrefs.players);
+    const levelSel = selectField(wrap, T('Opponent skill'), [['easy', T('easy')], ['medium', T('medium')], ['hard', T('hard')]], practicePrefs.level);
+    const stackingChk = checkField(wrap, T('Stacking (Draw cards stack)'), settings.rulesOptions.stacking);
+    const dtmChk = checkField(wrap, T('Draw-to-match (draw up to 3)'), settings.rulesOptions.drawToMatch);
+    const undoChk = checkField(wrap, T('Undo assist'), practicePrefs.undo);
+    // Remember the choices so a language change re-renders without resetting them.
+    playersSel.addEventListener('change', () => { practicePrefs.players = playersSel.value; });
+    levelSel.addEventListener('change', () => { practicePrefs.level = levelSel.value; });
+    undoChk.addEventListener('change', () => { practicePrefs.undo = undoChk.checked; });
+    stackingChk.addEventListener('change', () => { settings.rulesOptions.stacking = stackingChk.checked; });
+    dtmChk.addEventListener('change', () => { settings.rulesOptions.drawToMatch = dtmChk.checked; });
 
-    wrap.appendChild(btn('Start round', 'ce-btn-primary', () => {
+    wrap.appendChild(btn(T('Start round'), 'ce-btn-primary', () => {
       const count = Number(playersSel.value);
       const players = [{ id: 'p0', name: 'You', isAI: false }];
       const names = ['Vex', 'Mira', 'Tallo'];
@@ -317,18 +359,19 @@
         assists: { hint: true, undo: undoChk.checked },
       }, 'practice', null, players);
     }));
-    wrap.appendChild(btn('Back', null, titleScreen));
+    wrap.appendChild(btn(T('Back'), null, titleScreen));
     global.CEUI.append(wrap);
   }
 
+  // options: [[value, label], …]
   function selectField(parent, label, options, dflt) {
     const row = el('label', 'ce-field');
     row.appendChild(el('span', 'ce-settings-label', label));
     const sel = el('select');
-    for (const o of options) {
-      const opt = el('option', null, o);
-      opt.value = o;
-      if (o === dflt) opt.selected = true;
+    for (const [value, text] of options) {
+      const opt = el('option', null, text);
+      opt.value = value;
+      if (value === dflt) opt.selected = true;
       sel.appendChild(opt);
     }
     row.appendChild(sel);
@@ -348,43 +391,48 @@
 
   /* ---------------- journey ---------------- */
   function journeyScreen() {
+    screenRender = journeyScreen;
     global.CEUI.setScreen('ce-menu');
     global.CEUI.clear();
     const wrap = el('div', 'ce-menu-inner ce-wide');
-    wrap.appendChild(el('h1', null, 'Journey'));
-    wrap.appendChild(el('p', 'ce-tagline', 'Forty stages. New mechanics arrive one at a time.'));
+    wrap.appendChild(el('h1', null, T('Journey')));
+    wrap.appendChild(el('p', 'ce-tagline', T('Forty stages. New mechanics arrive one at a time.')));
     const grid = el('div', 'ce-journey-grid');
     for (const st of global.CEContent.JOURNEY) {
       const rec = progress.journey[st.id];
       const mark = rec && rec.goalMet ? ' ✓' : '';
-      const b = btn(st.index + '. ' + st.name + mark, 'ce-stage-btn' + (st.mastery ? ' ce-mastery' : ''), () => stageIntro(st));
+      const b = btn(st.index + '. ' + T(st.name) + mark, 'ce-stage-btn' + (st.mastery ? ' ce-mastery' : ''), () => stageIntro(st));
       grid.appendChild(b);
     }
     wrap.appendChild(grid);
-    wrap.appendChild(btn('Back', null, titleScreen));
+    wrap.appendChild(btn(T('Back'), null, titleScreen));
     global.CEUI.append(wrap);
   }
 
   function goalText(g) {
-    if (!g || g.type === 'win') return 'Goal: win the round.';
-    if (g.type === 'win-turns') return 'Goal: win in at most ' + g.turns + ' of your turns.';
-    if (g.type === 'win-no-draw') return 'Goal: win without drawing a card.';
-    if (g.type === 'score-min') return 'Goal: win with a score of at least ' + g.points + '.';
-    return 'Goal: win the round.';
+    if (!g || g.type === 'win') return T('Goal: win the round.');
+    if (g.type === 'win-turns') return T('Goal: win in at most {n} of your turns.', { n: g.turns });
+    if (g.type === 'win-no-draw') return T('Goal: win without drawing a card.');
+    if (g.type === 'score-min') return T('Goal: win with a score of at least {n}.', { n: g.points });
+    return T('Goal: win the round.');
   }
 
-  function stageIntro(st) {
+  const LEVEL_OPPONENTS = { easy: N('{n} players · easy opponents'), medium: N('{n} players · medium opponents'), hard: N('{n} players · hard opponents') };
+  function stagePanel(st) {
     const panel = el('div', 'ce-panel');
-    panel.appendChild(el('h2', null, st.index + '. ' + st.name));
-    if (st.intro) panel.appendChild(el('p', null, st.intro));
+    panel.appendChild(el('h2', null, st.index + '. ' + T(st.name)));
+    if (st.intro) panel.appendChild(el('p', null, T(st.intro)));
     panel.appendChild(el('p', null, goalText(st.goal)));
-    panel.appendChild(el('p', null, st.playerCount + ' players · ' + (st.aiLevel || 'easy') + ' opponents' + (st.stacking ? ' · stacking' : '')));
-    panel.appendChild(btn('Play', 'ce-btn-primary', () => {
+    panel.appendChild(el('p', null, T(LEVEL_OPPONENTS[st.aiLevel || 'easy'] || LEVEL_OPPONENTS.easy, { n: st.playerCount }) + (st.stacking ? ' · ' + T('stacking') : '')));
+    panel.appendChild(btn(T('Play'), 'ce-btn-primary', () => {
       clearOverlay();
       startJourneyStage(st);
     }));
-    panel.appendChild(btn('Cancel', null, clearOverlay));
-    showOverlay(panel);
+    panel.appendChild(btn(T('Cancel'), null, clearOverlay));
+    return panel;
+  }
+  function stageIntro(st) {
+    showOverlay(stagePanel(st), false, () => stagePanel(st));
   }
 
   function startJourneyStage(st) {
@@ -406,19 +454,20 @@
   }
 
   function challengesScreen() {
+    screenRender = challengesScreen;
     global.CEUI.setScreen('ce-menu');
     global.CEUI.clear();
     const wrap = el('div', 'ce-menu-inner');
-    wrap.appendChild(el('h1', null, 'Challenges'));
+    wrap.appendChild(el('h1', null, T('Challenges')));
     for (const ch of global.CEContent.CHALLENGES) {
       const rec = progress.challenges[ch.id];
       const row = el('div', 'ce-challenge-row');
-      const b = btn(ch.name + (rec && rec.completed ? ' ✓' : ''), 'ce-btn-primary', () => startChallenge(ch));
+      const b = btn(T(ch.name) + (rec && rec.completed ? ' ✓' : ''), 'ce-btn-primary', () => startChallenge(ch));
       row.appendChild(b);
-      row.appendChild(el('p', 'ce-challenge-desc', ch.desc + ' (' + ch.goalLabel + ')'));
+      row.appendChild(el('p', 'ce-challenge-desc', T(ch.desc) + ' (' + T(ch.goalLabel) + ')'));
       wrap.appendChild(row);
     }
-    wrap.appendChild(btn('Back', null, titleScreen));
+    wrap.appendChild(btn(T('Back'), null, titleScreen));
     global.CEUI.append(wrap);
   }
   function startChallenge(ch) {
@@ -430,16 +479,17 @@
 
   /* ---------------- learn (lessons) ---------------- */
   function learnScreen() {
+    screenRender = learnScreen;
     global.CEUI.setScreen('ce-menu');
     global.CEUI.clear();
     const wrap = el('div', 'ce-menu-inner');
-    wrap.appendChild(el('h1', null, 'Learn'));
-    wrap.appendChild(el('p', 'ce-tagline', 'Interactive lessons: one rule at a time.'));
+    wrap.appendChild(el('h1', null, T('Learn')));
+    wrap.appendChild(el('p', 'ce-tagline', T('Interactive lessons: one rule at a time.')));
     for (const ls of global.CEContent.LESSONS) {
       const done = progress.tutorials[ls.id];
-      wrap.appendChild(btn(ls.title + (done ? ' ✓' : ''), 'ce-lesson-btn', () => startLesson(ls)));
+      wrap.appendChild(btn(T(ls.title) + (done ? ' ✓' : ''), 'ce-lesson-btn', () => startLesson(ls)));
     }
-    wrap.appendChild(btn('Back', null, titleScreen));
+    wrap.appendChild(btn(T('Back'), null, titleScreen));
     global.CEUI.append(wrap);
   }
 
@@ -456,7 +506,7 @@
     wireSession();
     gameScreen();
     sfx('shuffle');
-    announce(ls.title + '. ' + ls.text);
+    announce(T(ls.title) + '. ' + T(ls.text));
   }
 
   // Gate lesson input: only the required action is accepted.
@@ -481,13 +531,16 @@
     global.CEStore.saveProgress(progress);
     checkAchievements();
     sfx('achievement');
-    const panel = el('div', 'ce-panel');
-    panel.appendChild(el('h2', null, 'Lesson complete'));
-    panel.appendChild(el('p', null, ls.title + ' — well done.'));
-    const next = global.CEContent.LESSONS[global.CEContent.LESSONS.indexOf(ls) + 1];
-    if (next) panel.appendChild(btn('Next lesson', 'ce-btn-primary', () => { clearOverlay(); startLesson(next); }));
-    panel.appendChild(btn('Back to lessons', null, () => { clearOverlay(); learnScreen(); }));
-    showOverlay(panel);
+    const build = () => {
+      const panel = el('div', 'ce-panel');
+      panel.appendChild(el('h2', null, T('Lesson complete')));
+      panel.appendChild(el('p', null, T('{title} — well done.', { title: T(ls.title) })));
+      const next = global.CEContent.LESSONS[global.CEContent.LESSONS.indexOf(ls) + 1];
+      if (next) panel.appendChild(btn(T('Next lesson'), 'ce-btn-primary', () => { clearOverlay(); startLesson(next); }));
+      panel.appendChild(btn(T('Back to lessons'), null, () => { clearOverlay(); learnScreen(); }));
+      return panel;
+    };
+    showOverlay(build(), false, build);
   }
 
   /* ---------------- session wiring ---------------- */
@@ -528,6 +581,7 @@
 
   function playerName(id) {
     const p = session && session.state.players.find(pl => pl.id === id);
+    if (p && !p.isAI) return T('You');
     return p ? p.name : id;
   }
 
@@ -537,33 +591,33 @@
         case 'cardPlayed': {
           const c = ev.card;
           sfx(c.kind === 'number' ? 'card' : 'action');
-          announce(playerName(ev.player) + ' played ' + global.CERules.cardLabel(c));
+          announce(T('{name} played {card}', { name: playerName(ev.player), card: cardLabel(c) }));
           break;
         }
         case 'drew':
           sfx('draw');
-          announce(playerName(ev.player) + ' drew ' + ev.count + (ev.count > 1 ? ' cards' : ' card'));
+          announce(T(ev.count > 1 ? '{name} drew {n} cards' : '{name} drew {n} card', { name: playerName(ev.player), n: ev.count }));
           break;
         case 'penaltyTaken':
           sfx('penalty');
-          announce(playerName(ev.player) + ' took the ' + ev.amount + '-card penalty');
+          announce(T('{name} took the {n}-card penalty', { name: playerName(ev.player), n: ev.amount }));
           break;
-        case 'skipped': announce(playerName(ev.player) + ' was skipped'); break;
-        case 'reversed': sfx('action'); announce('Direction of play reversed'); break;
+        case 'skipped': announce(T('{name} was skipped', { name: playerName(ev.player) })); break;
+        case 'reversed': sfx('action'); announce(T('Direction of play reversed')); break;
         case 'colorChosen':
-          announce('Color is now ' + colorLabel(ev.color));
+          announce(T('Color is now {color}', { color: colorLabel(ev.color) }));
           if (mode === 'learn' && lessonAwaiting === 'chooseColor' && ev.player === 'p0') completeLesson(modeCtx.lesson);
           break;
         case 'awaitColorChoice':
           if (ev.player === session.humanId) renderGame(); // chooser appears
           break;
-        case 'oneCardLeft': sfx('onecard'); announce(playerName(ev.player) + ' has one card left'); break;
-        case 'turnTimeout': announce(playerName(ev.player) + ' ran out of time and drew'); break;
-        case 'moveLimitHit': announce('Move limit reached'); break;
+        case 'oneCardLeft': sfx('onecard'); announce(T('{name} has one card left', { name: playerName(ev.player) })); break;
+        case 'turnTimeout': announce(T('{name} ran out of time and drew', { name: playerName(ev.player) })); break;
+        case 'moveLimitHit': announce(T('Move limit reached')); break;
         case 'invalidAction':
-          if (ev.player === session.humanId) { sfx('invalid'); announce('That move is not legal: ' + reasonText(ev.reason)); }
+          if (ev.player === session.humanId) { sfx('invalid'); announce(T('That move is not legal: {reason}', { reason: reasonText(ev.reason) })); }
           break;
-        case 'undone': sfx('undo'); announce('Move undone'); break;
+        case 'undone': sfx('undo'); announce(T('Move undone')); break;
         case 'turnPassed':
           if (ev.next === session.humanId && !session.finished) sfx('turn');
           break;
@@ -574,18 +628,19 @@
 
   function reasonText(reason) {
     const map = {
-      'not-your-turn': 'wait for your turn',
-      'no-color-or-rank-match': 'match the discard color or rank',
-      'must-draw-penalty': 'you must draw the penalty cards',
-      'stacking-requires-draw-card': 'stack a Draw card or take the penalty',
-      'card-not-in-hand': 'that card is not in your hand',
-      'round-finished': 'the round is over',
+      'not-your-turn': N('wait for your turn'),
+      'no-color-or-rank-match': N('match the discard color or rank'),
+      'must-draw-penalty': N('you must draw the penalty cards'),
+      'stacking-requires-draw-card': N('stack a Draw card or take the penalty'),
+      'card-not-in-hand': N('that card is not in your hand'),
+      'round-finished': N('the round is over'),
     };
-    return map[reason] || reason;
+    return map[reason] ? T(map[reason]) : reason;
   }
 
   /* ---------------- game screen ---------------- */
   function gameScreen() {
+    screenRender = renderGame;
     global.CEUI.setScreen('ce-game');
     global.CEUI.clear();
     renderGame();
@@ -600,14 +655,14 @@
 
     // header
     const header = el('header', 'ce-header');
-    const titles = { practice: 'Practice', journey: 'Journey', daily: 'Daily', challenge: 'Challenge', learn: 'Learn' };
-    let titleText = titles[mode] || 'Color Eights';
-    if (mode === 'journey' && modeCtx) titleText = modeCtx.stage.index + '. ' + modeCtx.stage.name;
-    if (mode === 'challenge' && modeCtx) titleText = modeCtx.challenge.name;
-    if (mode === 'learn' && modeCtx) titleText = modeCtx.lesson.title;
+    const titles = { practice: N('Practice'), journey: N('Journey'), daily: N('Daily'), challenge: N('Challenge'), learn: N('Learn') };
+    let titleText = titles[mode] ? T(titles[mode]) : 'Color Eights';
+    if (mode === 'journey' && modeCtx) titleText = modeCtx.stage.index + '. ' + T(modeCtx.stage.name);
+    if (mode === 'challenge' && modeCtx) titleText = T(modeCtx.challenge.name);
+    if (mode === 'learn' && modeCtx) titleText = T(modeCtx.lesson.title);
     header.appendChild(el('div', 'ce-title', titleText));
     const right = el('div', 'ce-header-right');
-    right.appendChild(btn('Pause', null, pauseOverlay));
+    right.appendChild(btn(T('Pause'), null, pauseOverlay));
     header.appendChild(right);
     screen.appendChild(header);
 
@@ -615,7 +670,7 @@
 
     // lesson banner
     if (mode === 'learn' && modeCtx) {
-      const banner = el('p', 'ce-lesson-banner', modeCtx.lesson.text);
+      const banner = el('p', 'ce-lesson-banner', T(modeCtx.lesson.text));
       main.appendChild(banner);
     }
 
@@ -625,9 +680,9 @@
     const cur = st.players[st.currentPlayer];
     let turnText;
     if (st.pendingColorChoice) {
-      turnText = st.pendingColorChoice.player === 0 ? 'Choose a color' : playerName(st.players[st.pendingColorChoice.player].id) + ' is choosing a color';
+      turnText = st.pendingColorChoice.player === 0 ? T('Choose a color') : T('{name} is choosing a color', { name: playerName(st.players[st.pendingColorChoice.player].id) });
     } else {
-      turnText = humanTurn ? 'Your turn' : cur.name + ' is thinking…';
+      turnText = humanTurn ? T('Your turn') : T('{name} is thinking…', { name: playerName(cur.id) });
     }
     if (st.config.turnTimerSec && humanTurn && session.turnTimeLeft() > 0) {
       turnText += ' (' + Math.ceil(session.turnTimeLeft()) + 's)';
@@ -639,7 +694,7 @@
     const chip = el('div', 'ce-color-chip');
     chip.appendChild(el('span', 'ce-chip-dot', SHAPE_GLYPH[R.COLOR_INFO[st.currentColor].shape] || ''));
     chip.style.setProperty('--chip', palette()[st.currentColor]);
-    chip.appendChild(el('span', null, colorLabel(st.currentColor) + (st.pendingDraw > 0 ? ' · draw ' + st.pendingDraw + ' pending' : '')));
+    chip.appendChild(el('span', null, colorLabel(st.currentColor) + (st.pendingDraw > 0 ? ' · ' + T('draw {n} pending', { n: st.pendingDraw }) : '')));
     info.appendChild(chip);
 
     // opponents summary
@@ -652,33 +707,33 @@
     const table = el('div', 'ce-table-cards');
     const la = R.legalActions(st, session.humanId);
     const canDraw = la.ok && la.actions.some(a => a.type === 'draw');
-    const drawBtn = btn('Draw (' + st.drawPile.length + ')', 'ce-draw-pile', () => tryDraw());
+    const drawBtn = btn(T('Draw ({n})', { n: st.drawPile.length }), 'ce-draw-pile', () => tryDraw());
     drawBtn.disabled = !canDraw;
-    drawBtn.setAttribute('aria-label', 'Draw from the pile, ' + st.drawPile.length + ' cards left');
+    drawBtn.setAttribute('aria-label', T('Draw from the pile, {n} cards left', { n: st.drawPile.length }));
     table.appendChild(drawBtn);
     const top = R.topDiscard(st);
-    const topEl = el('div', 'ce-discard-top', top ? cardGlyph(top) + ' ' + R.cardLabel(top) : '');
+    const topEl = el('div', 'ce-discard-top', top ? cardGlyph(top) + ' ' + cardLabel(top) : '');
     topEl.style.backgroundColor = top ? cardHex(top) : '#444';
     topEl.setAttribute('role', 'img');
-    topEl.setAttribute('aria-label', 'Top of discard: ' + (top ? R.cardLabel(top) : 'none'));
+    topEl.setAttribute('aria-label', T('Top of discard: {card}', { card: top ? cardLabel(top) : T('none') }));
     table.appendChild(topEl);
     main.appendChild(table);
 
     // hand
     const hand = el('div', 'ce-hand');
     hand.setAttribute('role', 'group');
-    hand.setAttribute('aria-label', 'Your hand');
+    hand.setAttribute('aria-label', T('Your hand'));
     const me = st.players[0];
     const playable = new Set(la.ok ? la.actions.filter(a => a.type === 'play').map(a => a.cardId) : []);
     for (const card of me.hand) {
-      const label = cardGlyph(card) + ' ' + R.cardLabel(card);
+      const label = cardGlyph(card) + ' ' + cardLabel(card);
       const b = btn(label, 'ce-card-btn' + (playable.has(card.id) ? ' ce-playable' : ''), () => tryPlay(card.id));
       b.style.backgroundColor = cardHex(card);
       b.disabled = !playable.has(card.id);
-      let aria = R.cardLabel(card);
+      let aria = cardLabel(card);
       if (!playable.has(card.id)) {
         const why = R.explainInvalid(st, session.humanId, card.id);
-        if (why) aria += ' — not playable: ' + reasonText(why);
+        if (why) aria += ' — ' + T('not playable: {reason}', { reason: reasonText(why) });
       }
       b.setAttribute('aria-label', aria);
       b.dataset.cardId = card.id;
@@ -689,11 +744,11 @@
     // action row
     const actions = el('div', 'ce-action-row');
     if (st.config.assists && st.config.assists.hint) {
-      actions.appendChild(btn(mode === 'learn' ? 'Hint' : 'Hint (H)', null, showHint));
+      actions.appendChild(btn(mode === 'learn' ? T('Hint') : T('Hint') + ' (H)', null, showHint));
     }
-    if (session.canUndo()) actions.appendChild(btn('Undo (U)', null, doUndo));
+    if (session.canUndo()) actions.appendChild(btn(T('Undo') + ' (U)', null, doUndo));
     if (mode === 'learn' && modeCtx) {
-      actions.appendChild(btn('Restart lesson', null, () => startLesson(modeCtx.lesson)));
+      actions.appendChild(btn(T('Restart lesson'), null, () => startLesson(modeCtx.lesson)));
     }
     main.appendChild(actions);
 
@@ -706,8 +761,12 @@
   }
 
   function showColorChooser() {
+    const panel = colorPanel();
+    showOverlay(panel, true, colorPanel);
+  }
+  function colorPanel() {
     const panel = el('div', 'ce-panel ce-color-panel');
-    panel.appendChild(el('h2', null, 'Choose a color'));
+    panel.appendChild(el('h2', null, T('Choose a color')));
     const row = el('div', 'ce-color-row');
     for (const c of global.CERules.COLORS) {
       const b = btn(SHAPE_GLYPH[global.CERules.COLOR_INFO[c].shape] + ' ' + colorLabel(c), 'ce-color-btn', () => {
@@ -718,14 +777,14 @@
       row.appendChild(b);
     }
     panel.appendChild(row);
-    showOverlay(panel, true);
+    return panel;
   }
 
   function dispatchHuman(command) {
     if (!session || session.finished) return;
     command.player = session.humanId;
     if (!lessonAllows(command, command.cardId && session.state.players[0].hand.find(c => c.id === command.cardId))) {
-      announce(modeCtx.lesson.hintText);
+      announce(T(modeCtx.lesson.hintText));
       sfx('invalid');
       return;
     }
@@ -742,48 +801,55 @@
 
   function showHint() {
     if (!session) return;
-    if (mode === 'learn' && modeCtx) { sfx('hint'); announce(modeCtx.lesson.hintText); return; }
+    if (mode === 'learn' && modeCtx) { sfx('hint'); announce(T(modeCtx.lesson.hintText)); return; }
     const h = session.hint();
-    if (!h.ok) { announce('No hint available right now'); return; }
+    if (!h.ok) { announce(T('No hint available right now')); return; }
     sfx('hint');
     if (h.action.type === 'play') {
-      announce('Hint: play ' + global.CERules.cardLabel(session.state.players[0].hand.find(c => c.id === h.action.cardId)));
+      announce(T('Hint: play {card}', { card: cardLabel(session.state.players[0].hand.find(c => c.id === h.action.cardId)) }));
       const elBtn = doc().querySelector('[data-card-id="' + h.action.cardId + '"]');
       if (elBtn) {
         elBtn.classList.add('ce-hinted');
         setTimeout(() => elBtn.classList.remove('ce-hinted'), 1600);
       }
     } else if (h.action.type === 'draw') {
-      announce('Hint: draw a card');
+      announce(T('Hint: draw a card'));
     } else {
-      announce('Hint: choose your strongest color');
+      announce(T('Hint: choose your strongest color'));
     }
   }
 
   function doUndo() {
     if (!session) return;
     const r = session.undo();
-    if (!r.ok) announce('Cannot undo: ' + reasonText(r.reason));
+    if (!r.ok) announce(T('Cannot undo: {reason}', { reason: reasonText(r.reason) }));
   }
 
   /* ---------------- pause / settings ---------------- */
   function pauseOverlay() {
     if (!session) return;
     session.pause();
+    showOverlay(pausePanel(), false, pausePanel);
+  }
+  function pausePanel() {
     const panel = el('div', 'ce-panel');
-    panel.appendChild(el('h2', null, 'Paused'));
-    panel.appendChild(btn('Resume', 'ce-btn-primary', () => { clearOverlay(); session && session.resume(); }));
-    panel.appendChild(btn('Restart round', null, () => { clearOverlay(); restartRound(); }));
-    panel.appendChild(btn('Settings', null, () => showOverlay(settingsPanel())));
-    panel.appendChild(btn('Save & quit to menu', null, () => {
+    panel.appendChild(el('h2', null, T('Paused')));
+    panel.appendChild(btn(T('Resume'), 'ce-btn-primary', () => { clearOverlay(); session && session.resume(); }));
+    panel.appendChild(btn(T('Restart round'), null, () => { clearOverlay(); restartRound(); }));
+    panel.appendChild(btn(T('Settings'), null, openSettings));
+    panel.appendChild(btn(T('Save & quit to menu'), null, () => {
       if (session && !session.finished) global.CEStore.saveSnapshot(session.snapshot());
       titleScreen();
     }));
-    panel.appendChild(btn('Quit without saving', null, () => {
+    panel.appendChild(btn(T('Quit without saving'), null, () => {
       if (session && !session.finished) session.dispatch({ type: 'resign', player: session.humanId, id: 'resign-' + Date.now().toString(36) });
       titleScreen();
     }));
-    showOverlay(panel);
+    return panel;
+  }
+  function openSettings() {
+    settingsTab = 'general';
+    showOverlay(settingsPanel(), false, () => settingsPanel(settingsTab));
   }
 
   function restartRound() {
@@ -802,8 +868,8 @@
   // Settings overlay: General (audio, palette, accessibility) and Graphics tabs.
   function settingsPanel(tab) {
     const panel = el('div', 'ce-panel ce-settings-panel');
-    panel.appendChild(el('h2', null, 'Settings'));
-    const T = global.CEGfxUI ? global.CEGfxUI.t : (k) => k;
+    panel.appendChild(el('h2', null, T('Settings')));
+    const GT = global.CEGfxUI ? global.CEGfxUI.t : (k) => k;
     const tabs = el('div', 'ce-tabs');
     tabs.setAttribute('role', 'tablist');
     const body = el('div', 'ce-tab-body');
@@ -817,6 +883,7 @@
       body.innerHTML = '';
       body.className = 'ce-tab-body';
       body.dataset.tab = name;
+      settingsTab = name;
       if (name === 'graphics' && global.CEGfxUI) {
         global.CEGfxUI.build(body, () => settings.graphics.gfx || {}, (next) => {
           settings.graphics.gfx = next;
@@ -826,7 +893,7 @@
       } else generalSettings(body);
       if (focus) tabBtns[name].focus();
     };
-    for (const [name, label] of [['general', T('general')], ['graphics', T('graphics')]]) {
+    for (const [name, label] of [['general', GT('general')], ['graphics', GT('graphics')]]) {
       const b = btn(label, 'ce-tab', () => select(name, true));
       b.setAttribute('role', 'tab');
       b.dataset.settingsTab = name;
@@ -843,7 +910,7 @@
     panel.appendChild(body);
     select(tab || 'general', false);
 
-    panel.appendChild(btn('Close', 'ce-btn-primary', () => {
+    panel.appendChild(btn(T('Close'), 'ce-btn-primary', () => {
       clearOverlay();
       if (session && !session.finished && !doc().hidden) session.resume();
     }));
@@ -852,10 +919,10 @@
 
   function generalSettings(panel) {
 
-    const sliders = [['Music', 'music'], ['Effects', 'effects'], ['Ambience', 'ambience']];
+    const sliders = [[N('Music'), 'music'], [N('Effects'), 'effects'], [N('Ambience'), 'ambience']];
     for (const [label, bus] of sliders) {
       const row = el('label', 'ce-settings-row');
-      row.appendChild(el('span', 'ce-settings-label', label));
+      row.appendChild(el('span', 'ce-settings-label', T(label)));
       const input = el('input');
       input.type = 'range'; input.min = '0'; input.max = '1'; input.step = '0.05';
       input.value = String(settings.audio[bus]);
@@ -869,7 +936,7 @@
     }
 
     const muteRow = el('label', 'ce-settings-row');
-    muteRow.appendChild(el('span', 'ce-settings-label', 'Mute all audio'));
+    muteRow.appendChild(el('span', 'ce-settings-label', T('Mute all audio')));
     const mute = el('input');
     mute.type = 'checkbox';
     mute.checked = !!settings.audio.muted;
@@ -882,10 +949,11 @@
     panel.appendChild(muteRow);
 
     const palRow = el('label', 'ce-settings-row');
-    palRow.appendChild(el('span', 'ce-settings-label', 'Color palette'));
+    palRow.appendChild(el('span', 'ce-settings-label', T('Color palette')));
     const pal = el('select');
-    for (const key of ['standard', 'contrast', 'deuteranopia', 'tritanopia']) {
-      const o = el('option', null, key);
+    const PALETTES = { standard: N('standard'), contrast: N('contrast'), deuteranopia: N('deuteranopia'), tritanopia: N('tritanopia') };
+    for (const key of Object.keys(PALETTES)) {
+      const o = el('option', null, T(PALETTES[key]));
       o.value = key;
       if (settings.accessibility.palette === key) o.selected = true;
       pal.appendChild(o);
@@ -899,13 +967,13 @@
     panel.appendChild(palRow);
 
     const toggles = [
-      ['Reduced motion', 'graphics', 'reducedMotion'],
-      ['High contrast', 'accessibility', 'highContrast'],
-      ['Larger text', 'accessibility', 'largeText'],
+      [N('Reduced motion'), 'graphics', 'reducedMotion'],
+      [N('High contrast'), 'accessibility', 'highContrast'],
+      [N('Larger text'), 'accessibility', 'largeText'],
     ];
     for (const [label, group, key] of toggles) {
       const row = el('label', 'ce-settings-row');
-      row.appendChild(el('span', 'ce-settings-label', label));
+      row.appendChild(el('span', 'ce-settings-label', T(label)));
       const chk = el('input');
       chk.type = 'checkbox';
       chk.checked = !!settings[group][key];
@@ -969,7 +1037,7 @@
       if (progress.achievements[key]) return;
       progress.achievements[key] = Date.now();
       sfx('achievement');
-      announce('Achievement unlocked: ' + (ACHIEVEMENTS[key] || key));
+      announce(T('Achievement unlocked: {name}', { name: ACHIEVEMENTS[key] ? T(ACHIEVEMENTS[key]) : key }));
     };
     if (humanWon) unlock('first-win');
     if (humanWon && st && st.scores && st.scores.total >= 100) unlock('century');
@@ -979,56 +1047,69 @@
     if (global.CEContent.LESSONS.every(ls => progress.tutorials[ls.id])) unlock('all-lessons');
   }
 
-  function resultsScreen(st, humanWon, journeyMet) {
+  // rerender: true when re-drawn for a language change (no re-post, no announcement).
+  let lbResult = null; // null | 'posting' | { posted, rank }
+  function resultsScreen(st, humanWon, journeyMet, rerender) {
     if (!session) return; // user already left
+    screenRender = () => resultsScreen(st, humanWon, journeyMet, true);
     clearOverlay();
     global.CEUI.setScreen('ce-menu');
     global.CEUI.clear();
     const wrap = el('div', 'ce-menu-inner');
-    wrap.appendChild(el('h1', null, humanWon ? 'You win!' : playerName(st.winner) + ' wins'));
+    wrap.appendChild(el('h1', null, humanWon ? T('You win!') : T('{name} wins', { name: playerName(st.winner) })));
     const reasonTextMap = {
-      'empty-hand': 'Emptied their hand first.',
-      'resignation': 'Round ended by resignation.',
-      'move-limit': 'Move limit reached.',
+      'empty-hand': N('Emptied their hand first.'),
+      'resignation': N('Round ended by resignation.'),
+      'move-limit': N('Move limit reached.'),
     };
-    wrap.appendChild(el('p', 'ce-tagline', reasonTextMap[st.terminalReason] || st.terminalReason));
+    wrap.appendChild(el('p', 'ce-tagline', reasonTextMap[st.terminalReason] ? T(reasonTextMap[st.terminalReason]) : st.terminalReason));
     wrap.appendChild(artImage(humanWon ? 'assets/results-win.webp' : 'assets/results-lose.webp', 'ce-results-art'));
     if (journeyMet !== null && journeyMet !== undefined) {
-      wrap.appendChild(el('p', 'ce-goal-line', journeyMet ? 'Stage goal met ✓' : 'Stage goal not met — ' + goalText(modeCtx.stage.goal)));
+      wrap.appendChild(el('p', 'ce-goal-line', journeyMet ? T('Stage goal met ✓') : T('Stage goal not met — {goal}', { goal: goalText(modeCtx.stage.goal) })));
     }
 
-    wrap.appendChild(el('h2', null, 'Score: ' + st.scores.total + ' points'));
+    wrap.appendChild(el('h2', null, T('Score: {n} points', { n: st.scores.total })));
     const list = el('ul', 'ce-breakdown');
     for (const b of st.scores.breakdown) {
+      const p = st.players.find(pl => pl.name === b.name);
+      const who = p && !p.isAI ? T('You') : b.name;
+      const hand = b.cardsLeft === 1 ? T('{n} card left', { n: b.cardsLeft }) : T('{n} cards left', { n: b.cardsLeft });
       const li = el('li', null,
-        b.name + ' — ' + b.cardsLeft + ' card' + (b.cardsLeft === 1 ? '' : 's') + ' left, ' + b.handValue + ' points' +
-        (b.detail.length ? ' (' + b.detail.map(d => d.label + ' ' + d.value).join(', ') + ')' : ''));
+        who + ' — ' + hand + ', ' + T('{n} points', { n: b.handValue }) +
+        (b.detail.length ? ' (' + b.detail.map(d => labelFromEnglish(d.label) + ' ' + d.value).join(', ') + ')' : ''));
       list.appendChild(li);
     }
     wrap.appendChild(list);
     if (humanWon && mode !== 'learn' && mode !== 'practice' && global.CEPlatform.hosted) {
       // StarHermit high-score board: a won round's points.
-      const lb = el('p', 'ce-goal-line ce-lb-line', PT.lbPosting);
+      const lb = el('p', 'ce-goal-line ce-lb-line', '');
       lb.setAttribute('aria-live', 'polite');
       wrap.appendChild(lb);
-      global.CEPlatform.submitScore(st.scores.total).then((r) => {
-        lb.textContent = !r.posted ? PT.lbNotPosted
+      const paint = () => {
+        const r = lbResult;
+        lb.textContent = !r || r === 'posting' ? PT.lbPosting : !r.posted ? PT.lbNotPosted
           : r.rank ? global.PlatformStrings.fmtPlatform(PT.lbRank, { rank: r.rank }) : PT.lbPosted;
-      });
+      };
+      if (!rerender) {
+        lbResult = 'posting';
+        global.CEPlatform.submitScore(st.scores.total).then((r) => { lbResult = r; paint(); });
+      }
+      paint();
     }
 
-    wrap.appendChild(btn('Play again', 'ce-btn-primary', restartRound));
+    wrap.appendChild(btn(T('Play again'), 'ce-btn-primary', restartRound));
     if (mode === 'journey' && modeCtx) {
       const next = global.CEContent.JOURNEY[modeCtx.stage.index]; // index is 1-based; next entry
-      if (next) wrap.appendChild(btn('Next stage', null, () => startJourneyStage(next)));
+      if (next) wrap.appendChild(btn(T('Next stage'), null, () => startJourneyStage(next)));
     }
     if (mode === 'learn' && modeCtx) {
       const next = global.CEContent.LESSONS[global.CEContent.LESSONS.indexOf(modeCtx.lesson) + 1];
-      if (next) wrap.appendChild(btn('Next lesson', null, () => startLesson(next)));
+      if (next) wrap.appendChild(btn(T('Next lesson'), null, () => startLesson(next)));
     }
-    wrap.appendChild(btn('Back to menu', null, titleScreen));
+    wrap.appendChild(btn(T('Back to menu'), null, titleScreen));
     global.CEUI.append(wrap);
-    announce(humanWon ? 'You win. ' : playerName(st.winner) + ' wins. ' + 'Score ' + st.scores.total + ' points.');
+    if (rerender) return;
+    announce(humanWon ? T('You win.') + ' ' + T('Score {n} points.', { n: st.scores.total }) : T('{name} wins.', { name: playerName(st.winner) }) + ' ' + T('Score {n} points.', { n: st.scores.total }));
     const first = wrap.querySelector('button');
     if (first) first.focus();
   }
@@ -1053,6 +1134,39 @@
     else if (act === 'hint') showHint();
     else if (act === 'undo') doUndo();
   }
+
+  // Card labels in score details are recorded in English by the rules engine
+  // ("Ember 7", "Wild Draw Four"); translate them for display.
+  function labelFromEnglish(label) {
+    const R = global.CERules;
+    for (const kind of Object.keys(R.KIND_LABEL)) if (label === R.KIND_LABEL[kind]) return T(label);
+    for (const c of R.COLORS) {
+      const base = R.COLOR_INFO[c].label + ' ';
+      if (label.indexOf(base) === 0) {
+        const rest = label.slice(base.length);
+        const kind = Object.keys(R.KIND_LABEL).find(k => R.KIND_LABEL[k] === rest);
+        return kind ? T('{color} {kind}', { color: colorLabel(c), kind: T(rest) }) : T('{color} {rank}', { color: colorLabel(c), rank: rest });
+      }
+    }
+    return label;
+  }
+
+  // Game language changed (Settings → Language, or the account preference
+  // arrived): rebuild the visible screen and any open dialog in the new
+  // language. The session keeps running untouched (a paused round stays paused).
+  function onLanguage() {
+    PT = global.PlatformStrings.platformStrings(curLang());
+    if (global.CEGfxUI && global.CEGfxUI.setLocale) global.CEGfxUI.setLocale(curLang());
+    if (!settings || !screenRender) return;
+    const rebuild = overlayRebuild, mandatory = overlayMandatory, hadOverlay = !!overlayEl;
+    const keepPaused = session && !session.finished && hadOverlay;
+    clearOverlay();
+    screenRender();
+    // renderGame re-shows the color chooser itself; otherwise reopen the dialog.
+    if (hadOverlay && rebuild && !overlayEl) showOverlay(rebuild(), mandatory, rebuild);
+    if (keepPaused && session) session.pause();
+  }
+  if (global.document) global.document.addEventListener('ce-language', onLanguage);
 
   global.CEApp = { boot };
   // auto-boot when loaded in a browser with the DOM ready

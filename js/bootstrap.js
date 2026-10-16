@@ -9,19 +9,21 @@ window.THREE = THREE;
 // module, a thrown import, a stalled network) the player sees why and can retry
 // instead of staring at "Loading…" forever.
 const bootEl = document.getElementById('ce-ui');
-const watchdog = setTimeout(() => showBootFailure('The game is taking too long to start.'), 15000);
+const T = (k, v) => (window.CEI18N ? window.CEI18N.T(k, v) : String(k).replace(/\{(\w+)\}/g, (m, x) => (v && x in v ? v[x] : m)));
+const watchdog = setTimeout(() => showBootFailure(T('The game is taking too long to start.')), 15000);
 function showBootFailure(reason) {
-  if (!bootEl || !bootEl.classList.contains('ce-boot') || !/Loading/.test(bootEl.textContent)) return;
+  // Already replaced by the game (or a failure is already shown): nothing to do.
+  if (!bootEl || !bootEl.isConnected || !bootEl.classList.contains('ce-boot') || bootEl.querySelector('button')) return;
   bootEl.innerHTML = '';
   const p = document.createElement('p');
-  p.textContent = reason + ' Check your connection and try again.';
+  p.textContent = reason + ' ' + T('Check your connection and try again.');
   const b = document.createElement('button');
-  b.className = 'ce-btn'; b.type = 'button'; b.textContent = 'Retry';
+  b.className = 'ce-btn'; b.type = 'button'; b.textContent = T('Retry');
   b.addEventListener('click', () => location.reload());
   bootEl.append(p, b);
 }
-window.addEventListener('error', (e) => { if (e.message) showBootFailure('The game failed to start (' + e.message + ').'); }, { once: true });
-window.addEventListener('unhandledrejection', () => showBootFailure('The game failed to start.'), { once: true });
+window.addEventListener('error', (e) => { if (e.message) showBootFailure(T('The game failed to start ({error}).', { error: e.message })); }, { once: true });
+window.addEventListener('unhandledrejection', () => showBootFailure(T('The game failed to start.')), { once: true });
 
 try {
 await import('./rules.js');
@@ -39,7 +41,7 @@ await import('./ui.js');
 await import('./game.js');
 await import('./app.js');
 } catch (err) {
-  showBootFailure('The game failed to start (' + (err && err.message ? err.message : 'module error') + ').');
+  showBootFailure(T('The game failed to start ({error}).', { error: err && err.message ? err.message : 'module error' }));
   throw err;
 }
 clearTimeout(watchdog);

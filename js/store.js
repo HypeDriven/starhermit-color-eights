@@ -109,7 +109,41 @@
   function loadSnapshot() { return get('snapshot', null); }
   function clearSnapshot() { del('snapshot'); }
 
+  // Cloud-save conflict (another device saved first): the better of both
+  // progress records so neither device loses anything — per stage the goal met
+  // on either side and the higher best/stars, every lesson, achievement
+  // (earliest unlock), daily and challenge completion, the larger lifetime
+  // stats; the running win streak stays this device's.
+  function mergeProgress(local, remote) {
+    const a = mergeDeep(JSON.parse(JSON.stringify(DEFAULT_PROGRESS)), local || {});
+    const b = mergeDeep(JSON.parse(JSON.stringify(DEFAULT_PROGRESS)), remote || {});
+    const out = JSON.parse(JSON.stringify(a));
+    for (const [id, r] of Object.entries(b.journey)) {
+      const l = out.journey[id];
+      out.journey[id] = !l ? r : Object.assign({}, r, l, {
+        goalMet: !!(l.goalMet || r.goalMet),
+        best: Math.max(l.best || 0, r.best || 0),
+        stars: Math.max(l.stars || 0, r.stars || 0),
+      });
+    }
+    for (const [id, r] of Object.entries(b.challenges)) {
+      const l = out.challenges[id];
+      out.challenges[id] = !l ? r : { completed: !!(l.completed || r.completed), best: Math.max(l.best || 0, r.best || 0) };
+    }
+    Object.assign(out.tutorials, b.tutorials, a.tutorials);
+    for (const [k, at] of Object.entries(b.achievements)) {
+      out.achievements[k] = out.achievements[k] ? Math.min(out.achievements[k], at) : at;
+    }
+    for (const k of ['roundsPlayed', 'wins', 'bestWinStreak', 'actionCardsUsed']) {
+      out.stats[k] = Math.max(Number(a.stats[k]) || 0, Number(b.stats[k]) || 0);
+    }
+    out.stats.dailyCompleted = Object.assign({}, b.stats.dailyCompleted, a.stats.dailyCompleted);
+    out.mastery.points = Math.max(Number(a.mastery.points) || 0, Number(b.mastery.points) || 0);
+    return out;
+  }
+
   global.CEStore = {
+    mergeProgress,
     NS, SETTINGS_VERSION, PROGRESS_VERSION,
     get, set, del, wrap, unwrap, checksum, mergeDeep,
     DEFAULT_SETTINGS, loadSettings, saveSettings,

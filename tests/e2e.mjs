@@ -9,6 +9,7 @@
  * Run: npm run test:e2e
  */
 import { chromium } from 'playwright-core';
+import { stubStarHermit, launchToken } from './starhermit-e2e.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -251,6 +252,62 @@ async function runPass(browser, pass, viewport, hasTouch) {
     if (!ok) throw new Error('CEStore round-trip failed');
   });
 
+  // Signed in against a stubbed StarHermit API whose account prefers fr-CA:
+  // Automatic resolves to Canadian French; switching to Italian from Settings
+  // while a round is paused re-renders the table and the open dialog in place
+  // without touching the round, syncs ui.language, and Report a problem posts.
+  await step('Language: Automatic follows the StarHermit preference; live switch mid-round; ui.language; report a problem', async () => {
+    const calls = await stubStarHermit(page, { preferredLanguage: 'fr-CA' });
+    await page.goto('about:blank');
+    await page.goto(`http://127.0.0.1:${port}/index.html#game_token=${launchToken()}`, { waitUntil: 'load' });
+    await page.waitForFunction(() => document.documentElement.lang === 'fr-CA' && /Entraînement/.test(document.querySelector('#ce-ui.ce-menu')?.textContent || ''), null, { timeout: 15000 });
+    await page.click('#ce-ui.ce-menu button:has-text("Entraînement")');
+    await page.click('button:has-text("Commencer la manche")');
+    await page.waitForSelector('#ce-ui.ce-game .ce-card-btn', { timeout: 5000 });
+    await page.waitForFunction(() => (document.querySelector('.ce-turn-label') || {}).textContent === 'À vous', null, { timeout: 10000 });
+    const hand = await page.locator('.ce-card-btn').count();
+    await page.click('.ce-header button:has-text("Pause")');
+    await page.waitForSelector('.ce-overlay h2:has-text("En pause")');
+    await page.click('.ce-overlay button:has-text("Paramètres")');
+    await page.click('[data-settings-tab="graphics"]');
+    const choice = page.locator('[data-game-language="choice"]');
+    await choice.waitFor({ state: 'attached', timeout: 5000 });
+    if ((await choice.count()) !== 1) throw new Error('expected exactly one language selector');
+    await choice.scrollIntoViewIfNeeded();
+    const auto = await choice.locator('option').first().textContent();
+    if (auto !== 'Automatique — Français (Canada)') throw new Error('Automatic label not resolved: ' + auto);
+    await choice.selectOption('it-IT');
+    await page.waitForFunction(() => document.documentElement.lang === 'it-IT'
+      && document.querySelector('.ce-overlay h2')?.textContent === 'Impostazioni'
+      && document.querySelector('.ce-tab-body')?.dataset.tab === 'graphics'
+      && document.querySelector('[data-settings-tab="graphics"]').textContent === 'Grafica'
+      && document.querySelector('.ce-turn-label')?.textContent === 'Tocca a te'
+      && /Pesca \(\d+\)/.test(document.querySelector('.ce-draw-pile')?.textContent || ''));
+    const status = page.locator('[data-game-language="status"]');
+    await status.waitFor({ state: 'attached' });
+    await page.waitForFunction(() => /Salvato/.test(document.querySelector('[data-game-language="status"]')?.textContent || ''));
+    if (calls.settings['ui.language']?.choice !== 'it-IT') throw new Error('ui.language not saved: ' + JSON.stringify(calls.settings));
+    const report = page.locator('[data-game-report="title"]');
+    await report.scrollIntoViewIfNeeded();
+    await report.fill('Test report');
+    await page.click('[data-game-report="send"]');
+    await page.waitForFunction(() => /Grazie/.test(document.querySelector('[data-game-report="status"]').textContent));
+    if (!calls.reports?.[0] || calls.reports[0].kind !== 'bug') throw new Error('report not posted');
+    const spill = await page.evaluate(() => {
+      const w = document.documentElement.clientWidth;
+      return [...document.querySelectorAll('.ce-overlay select, .ce-overlay input, .ce-overlay button, .ce-overlay textarea')]
+        .filter((n) => n.offsetParent && n.getBoundingClientRect().right > w + 1).map((n) => n.outerHTML.slice(0, 60));
+    });
+    if (spill.length) throw new Error('settings controls cut off: ' + spill.join(','));
+    await page.screenshot({ path: SHOT('language', pass) });
+    await page.locator('[data-game-language="choice"]').selectOption('auto');
+    await page.waitForFunction(() => document.documentElement.lang === 'fr-CA' && document.querySelector('.ce-overlay h2')?.textContent === 'Paramètres');
+    await page.click('.ce-overlay button:has-text("Fermer")');
+    await page.waitForSelector('.ce-overlay', { state: 'detached', timeout: 5000 });
+    if ((await page.locator('.ce-card-btn').count()) !== hand) throw new Error('round changed during the language switch');
+    await page.unroute(/\/api\/v1\//);
+  });
+
   await context.close();
   if (errors.length) throw new Error(`[${pass}] page errors:\n` + errors.join('\n'));
 }
@@ -271,7 +328,7 @@ try {
   console.log('--- mobile pass (390x844, touch) ---');
   await runPass(browser, 'mobile', { width: 390, height: 844 }, true);
 
-  console.log('\nE2E PASS — UI playthrough clean on desktop and mobile');
+  console.log('\nE2E PASS — UI playthrough + language/report step clean on desktop and mobile');
 } finally {
   if (browser) await browser.close();
   server.close();

@@ -1,5 +1,5 @@
 /* Color Eights — Graphics settings section (Settings → Graphics tab) with its own localized strings.
- * The rest of the game is English-only; this panel follows navigator.language. */
+ * The panel follows the game language (js/i18n.js). */
 (function (global) {
   'use strict';
 
@@ -114,7 +114,8 @@
     if (b === 'it') return 'it-IT';
     return 'en-US';
   }
-  let locale = pickLocale(global.navigator && global.navigator.language);
+  // The game language (js/i18n.js) wins; app.js calls setLocale on a change.
+  let locale = pickLocale(global.CEI18N ? global.CEI18N.lang : (global.navigator && global.navigator.language));
   function t(key, vars) {
     let s = (STRINGS[locale] && STRINGS[locale][key]) || EN_US[key] || key;
     if (vars) for (const k of Object.keys(vars)) s = s.replace('{' + k + '}', vars[k]);

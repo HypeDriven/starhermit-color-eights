@@ -11,6 +11,9 @@
   'use strict';
 
   const SAVE_DEBOUNCE_MS = 2000;
+  // Player-facing fallbacks follow the game language (js/i18n.js) when loaded.
+  const tr = (key, vars) => (global.CEI18N ? global.CEI18N.T(key, vars)
+    : String(key).replace(/\{(\w+)\}/g, (m, k) => (vars && k in vars ? String(vars[k]) : m)));
   const sdk = () => global.StarHermit || null;
   const signedIn = () => { const s = sdk(); return !!(s && s.signedIn); };
 
@@ -29,6 +32,7 @@
   let lastServerSyncAt = 0;
   let syncListeners = [];
   let authListeners = [];
+  let conflictListeners = [];
   let hooked = false;
   let bindings = cloneBindings(DEFAULT_BINDINGS);
   let codeMap = null;
@@ -56,8 +60,9 @@
   function profileFor(pid) {
     if (!pid || typeof pid !== 'string') return Promise.resolve('player');
     const s = sdk();
-    if (!s || !s.signedIn) return Promise.resolve('Player ' + pid.slice(0, 6));
-    return s.profile(pid).then((p) => (p && p.displayName) || 'Player ' + pid.slice(0, 6), () => 'Player ' + pid.slice(0, 6));
+    const fallback = tr('Player {id}', { id: pid.slice(0, 6) });
+    if (!s || !s.signedIn) return Promise.resolve(fallback);
+    return s.profile(pid).then((p) => (p && p.displayName) || fallback, () => fallback);
   }
   function fetchProfile() {
     const s = sdk();
@@ -129,6 +134,16 @@
         if (!a.signedIn) { profile = null; setSync('offline'); }
         for (const fn of authListeners) { try { fn(a); } catch (e) { /* ignore */ } }
       });
+      // Another device saved since our last load: the SDK refused this write and
+      // blocks further ones until a reload. Reload the cloud copy and hand it to
+      // the game (onConflict) to merge and save again.
+      s.on('saveconflict', () => {
+        setSync('saving');
+        s.loadJSON().then((remote) => {
+          if (s.saveConflicted()) { setSync('offline'); return; }
+          for (const fn of conflictListeners) { try { fn(remote); } catch (e) { /* ignore */ } }
+        });
+      });
     }
     if (signedIn()) {
       try {
@@ -183,6 +198,8 @@
     signIn() { const s = sdk(); return !!(s && s.signIn()); },
     onSync(fn) { if (typeof fn === 'function') syncListeners.push(fn); },
     onAuth(fn) { if (typeof fn === 'function') authListeners.push(fn); },
+    /** fn(remoteDoc|null) after a save conflict: the newer cloud copy, reloaded (writes allowed again). */
+    onConflict(fn) { if (typeof fn === 'function') conflictListeners.push(fn); },
     get hosted() { return signedIn(); },
     get tokenHosted() { return signedIn(); },
     get profile() { return profile; },
