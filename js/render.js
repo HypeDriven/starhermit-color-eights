@@ -27,7 +27,7 @@
   // Graphics state
   let saved = {};
   let q = null;               // resolved quality
-  let gpu = '', detected = 'balanced';
+  let gpu = '', detected = 'balanced', level = 4;
   let composer = null, gradePass = null, postKey = null, postFailed = false;
   let pmrem = null, envTex = null;
   let pixelRatio = 1, adaptiveScale = 1, frames = [], fps = 0;
@@ -55,9 +55,14 @@
   function rng(seed) { let s = seed >>> 0; return () => { s = (s + 0x6d2b79f5) >>> 0; let t = Math.imul(s ^ (s >>> 15), s | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
   let feltTex = null, woodTex = null, backTex = null, glowTex = null, dotTex = null;
+  // Texture sizes follow the preset budget (drawn in 512-unit space and scaled).
+  const texSize = (key, fallback) => (q && q.budget && q.budget[key]) || fallback;
   function feltTexture() {
     if (feltTex) return feltTex;
-    feltTex = canvasTex(512, 512, (g, w, h) => {
+    const n = texSize('feltTexture', 512);
+    feltTex = canvasTex(n, n, (g) => {
+      g.scale(n / 512, n / 512);
+      const w = 512, h = 512;
       g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
       const r = rng(7);
       // fibres: short light/dark strokes
@@ -80,7 +85,10 @@
   }
   function woodTexture() {
     if (woodTex) return woodTex;
-    woodTex = canvasTex(512, 64, (g, w, h) => {
+    const n = texSize('feltTexture', 512);
+    woodTex = canvasTex(n, n / 8, (g) => {
+      g.scale(n / 512, n / 512);
+      const w = 512, h = 64;
       g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
       const r = rng(11);
       for (let i = 0; i < 70; i++) {
@@ -101,7 +109,10 @@
   }
   function backTexture() {
     if (backTex) return backTex;
-    backTex = canvasTex(128, 192, (g, w, h) => {
+    const n = texSize('cardTexture', 128);
+    backTex = canvasTex(n, n * 1.5, (g) => {
+      g.scale(n / 128, n / 128);
+      const w = 128, h = 192;
       g.fillStyle = '#241c2c'; g.fillRect(0, 0, w, h);
       g.strokeStyle = '#ff7a4d'; g.lineWidth = 3; roundRect(g, 8, 8, w - 16, h - 16, 10); g.stroke();
       g.strokeStyle = 'rgba(255,122,77,0.28)'; g.lineWidth = 1.2;
@@ -125,9 +136,12 @@
   function faceTexture(card, hex) {
     const mark = card.kind === 'number' ? String(card.rank) : KIND_MARK[card.kind] || '';
     const glyph = card.color ? SHAPE_GLYPH[global.CERules.COLOR_INFO[card.color].shape] || '' : '★';
-    const key = hex + '|' + mark + '|' + glyph + '|' + (card.color ? '' : 'wild');
+    const n = texSize('cardTexture', 128);
+    const key = hex + '|' + mark + '|' + glyph + '|' + (card.color ? '' : 'wild') + '|' + n;
     if (faceTexCache.has(key)) return faceTexCache.get(key);
-    const tex = canvasTex(128, 192, (g, w, h) => {
+    const tex = canvasTex(n, n * 1.5, (g) => {
+      g.scale(n / 128, n / 128);
+      const w = 128, h = 192;
       g.fillStyle = '#e6dccb'; g.fillRect(0, 0, w, h);
       if (card.color) {
         g.fillStyle = hex; roundRect(g, 7, 7, w - 14, h - 14, 12); g.fill();
@@ -153,6 +167,8 @@
   /* ---------------- card geometry + materials ---------------- */
   let geoPlain = null, geoRound = null;
   function cardGeometries() {
+    if (geoPlain) geoPlain.dispose();
+    if (geoRound) geoRound.dispose();
     geoPlain = new THREE.BoxGeometry(CARD_W, CARD_D, CARD_H);
     // group order for BoxGeometry: +x,-x,+y,-y,+z,-z → make it [sides=1, top=0] like the extrude.
     const idx = [1, 1, 0, 1, 1, 1];
@@ -162,13 +178,32 @@
     s.moveTo(-w + r, -h); s.lineTo(w - r, -h); s.quadraticCurveTo(w, -h, w, -h + r);
     s.lineTo(w, h - r); s.quadraticCurveTo(w, h, w - r, h); s.lineTo(-w + r, h);
     s.quadraticCurveTo(-w, h, -w, h - r); s.lineTo(-w, -h + r); s.quadraticCurveTo(-w, -h, -w + r, -h);
-    geoRound = new THREE.ExtrudeGeometry(s, { depth: CARD_D * 0.6, bevelEnabled: true, bevelThickness: CARD_D * 0.2, bevelSize: 0.008, bevelSegments: 2, curveSegments: 4 });
+    geoRound = new THREE.ExtrudeGeometry(s, { depth: CARD_D * 0.6, bevelEnabled: true, bevelThickness: CARD_D * 0.2, bevelSize: 0.008, bevelSegments: Math.max(1, seg(2)), curveSegments: Math.max(2, seg(4)) });
     const pos = geoRound.attributes.position, uv = geoRound.attributes.uv;
     for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + w) / CARD_W, (pos.getY(i) + h) / CARD_H);
     geoRound.rotateX(-Math.PI / 2);
     geoRound.translate(0, -CARD_D * 0.5, 0);
   }
-  const edgeMat = new THREE.MeshStandardMaterial({ color: '#cfc5b4', roughness: 0.8 });
+  // Round-geometry LOD from the preset budget.
+  function seg(n, min) { return Math.max(min || 1, Math.round(n * ((q && q.budget && q.budget.segments) || 1))); }
+
+  // Lit material for the preset budget: Lambert on Low, Standard on Balanced, Physical (where `physical`)
+  // on High/Ultra. `params` are kept so a preset change can rebuild the material in the new class.
+  function lit(params, physical) {
+    const kind = (q && q.budget && q.budget.material) || 'physical';
+    let m;
+    if (kind === 'lambert') {
+      const { roughness, metalness, clearcoat, clearcoatRoughness, ...lp } = params;
+      m = new THREE.MeshLambertMaterial(lp);
+    } else if (physical && kind === 'physical') m = new THREE.MeshPhysicalMaterial(params);
+    else {
+      const { clearcoat, clearcoatRoughness, ...sp } = params;
+      m = new THREE.MeshStandardMaterial(sp);
+    }
+    m.userData.lit = { params, physical };
+    return m;
+  }
+  let edgeMat = lit({ color: '#cfc5b4', roughness: 0.8 });
   const matCache = new Map();
   function faceMaterial(card, hex) {
     const detailed = q && q.detail === 'detailed';
@@ -176,9 +211,9 @@
     if (matCache.has(key)) return matCache.get(key);
     let m;
     if (detailed) {
-      m = new THREE.MeshPhysicalMaterial({ map: card ? faceTexture(card, hex) : backTexture(), roughness: 0.42, metalness: 0 });
+      m = lit({ map: card ? faceTexture(card, hex) : backTexture(), roughness: 0.42, metalness: 0 }, true);
     } else {
-      m = new THREE.MeshStandardMaterial({ color: new THREE.Color(hex), roughness: 0.5 });
+      m = lit({ color: new THREE.Color(hex), roughness: 0.5 });
     }
     tuneGloss(m);
     matCache.set(key, m);
@@ -193,6 +228,55 @@
   function clearMatCache() { for (const m of matCache.values()) m.dispose(); matCache.clear(); }
 
   /* ---------------- scene ---------------- */
+  // Table geometry at the budget's LOD (the big discs keep at least 40 segments around).
+  const tableMeshes = {};
+  function tableGeometry(part) {
+    if (part === 'body') return new THREE.CylinderGeometry(RIM_R, RIM_R + 0.35, 0.7, seg(64, 40));
+    if (part === 'felt') return new THREE.CircleGeometry(FELT_R + 0.05, seg(64, 40));
+    return new THREE.TorusGeometry(RIM_R - 0.06, 0.2, seg(16, 8), seg(96, 48));
+  }
+
+  /** Rebuild the preset's asset variants: material class, textures and geometry LOD. */
+  function applyBudget(prev) {
+    const pb = (prev && prev.budget) || {}, nb = q.budget;
+    if (pb.material !== nb.material) {
+      const swapped = new Map();
+      const swap = (old) => {
+        if (!old || !old.userData.lit) return old;
+        if (!swapped.has(old)) {
+          const m = lit(old.userData.lit.params, old.userData.lit.physical);
+          m.color.copy(old.color);
+          swapped.set(old, m);
+        }
+        return swapped.get(old);
+      };
+      scene.traverse((o) => { if (o.isMesh && !Array.isArray(o.material) && o.material.userData.lit) o.material = swap(o.material); });
+      tableMat = swap(tableMat); feltMat = swap(feltMat); rimMat = swap(rimMat); floorMat = swap(floorMat);
+      const oldEdge = edgeMat;
+      edgeMat = swap(edgeMat);
+      drawStack.material = edgeMat;
+      for (const old of swapped.keys()) old.dispose();
+      if (oldEdge !== edgeMat) for (const c of cardMeshes) c.key = '';
+    }
+    if (pb.feltTexture !== nb.feltTexture) {
+      if (feltTex) { feltTex.dispose(); feltTex = null; }
+      if (woodTex) { woodTex.dispose(); woodTex = null; }
+    }
+    if (pb.cardTexture !== nb.cardTexture) {
+      for (const t of faceTexCache.values()) t.dispose();
+      faceTexCache.clear();
+      if (backTex) { backTex.dispose(); backTex = null; }
+    }
+    if (pb.segments !== nb.segments) {
+      for (const part of Object.keys(tableMeshes)) { tableMeshes[part].geometry.dispose(); tableMeshes[part].geometry = tableGeometry(part); }
+      cardGeometries();
+    }
+    if (pb.material !== nb.material || pb.cardTexture !== nb.cardTexture || pb.segments !== nb.segments) {
+      clearMatCache();
+      for (const c of cardMeshes) c.key = '';
+    }
+  }
+
   function init(canvas) {
     canvasEl = canvas;
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
@@ -225,24 +309,27 @@
     scene.add(rimLight);
 
     // table: felt disc, wood rim torus, body
-    tableMat = new THREE.MeshStandardMaterial({ color: '#3a1a16', roughness: 0.8 });
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(RIM_R, RIM_R + 0.35, 0.7, 64), tableMat);
+    tableMat = lit({ color: '#3a1a16', roughness: 0.8 });
+    const body = new THREE.Mesh(tableGeometry('body'), tableMat);
+    tableMeshes.body = body;
     body.position.y = TY - 0.38;
     body.receiveShadow = true;
     scene.add(body);
-    feltMat = new THREE.MeshStandardMaterial({ color: '#5a2320', roughness: 0.95 });
-    const felt = new THREE.Mesh(new THREE.CircleGeometry(FELT_R + 0.05, 64), feltMat);
+    feltMat = lit({ color: '#5a2320', roughness: 0.95 });
+    const felt = new THREE.Mesh(tableGeometry('felt'), feltMat);
+    tableMeshes.felt = felt;
     felt.rotation.x = -Math.PI / 2;
     felt.position.y = TY;
     felt.receiveShadow = true;
     scene.add(felt);
-    rimMat = new THREE.MeshPhysicalMaterial({ color: '#6b3a26', roughness: 0.45, clearcoat: 0, clearcoatRoughness: 0.2 });
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(RIM_R - 0.06, 0.2, 16, 96), rimMat);
+    rimMat = lit({ color: '#6b3a26', roughness: 0.45, clearcoat: 0, clearcoatRoughness: 0.2 }, true);
+    const rim = new THREE.Mesh(tableGeometry('rim'), rimMat);
+    tableMeshes.rim = rim;
     rim.rotation.x = -Math.PI / 2;
     rim.position.y = TY + 0.02;
     rim.castShadow = true; rim.receiveShadow = true;
     scene.add(rim);
-    floorMat = new THREE.MeshStandardMaterial({ color: '#1a0c0e', roughness: 0.9 });
+    floorMat = lit({ color: '#1a0c0e', roughness: 0.9 });
         const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = TY - 2.6;
@@ -301,7 +388,9 @@
       gpu = String(name);
     } catch (e) { gpu = ''; }
     const touch = !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches) || (global.navigator && global.navigator.maxTouchPoints > 0 && !(global.matchMedia && global.matchMedia('(pointer: fine)').matches));
-    detected = G.detectPreset(gpu, touch);
+    // StarHermit hardware level → Auto preset (SwiftShader = level 0 → Low; phones cap at Balanced).
+    level = G.detectLevel(gpu, global.StarHermitGpu ? global.StarHermitGpu.detectSystem() : { mobile: touch });
+    detected = G.presetForLevel(level);
   }
 
   // Apply a content theme (CEContent.THEMES entry) to the scene.
@@ -319,7 +408,7 @@
     if (t.fill != null) { hemi.color.set(t.fill); hemi.groundColor.set(t.floor || '#1a0c0e'); }
     if (!lastState && t.accent) glow.material.color.set(t.accent);
     for (const b of bokeh) b.material.color.set(t.key != null ? t.key : 0xffb070).multiplyScalar(1.2);
-    dirty = true;
+    wake();
   }
 
   /* ---------------- motes (dust in the lamp light) ---------------- */
@@ -363,8 +452,10 @@
   function setGraphics(s) {
     saved = Object.assign({}, s || {});
     const prevDetail = q && q.detail;
-    q = G.resolve(saved, detected);
+    const prevQ = q;
+    q = G.resolve(saved, detected, level);
     if (!renderer) return q;
+    applyBudget(prevQ);
     const mapSize = G.SHADOW_MAP[q.shadows];
     renderer.shadowMap.enabled = mapSize > 0;
     keyLight.castShadow = mapSize > 0;
@@ -398,7 +489,7 @@
     for (const m of matCache.values()) tuneGloss(m);
     for (const m of [feltMat, rimMat, tableMat, floorMat, edgeMat]) m.needsUpdate = true;
     for (const b of bokeh) b.visible = detailed;
-    buildMotes(G.PARTICLE_COUNT[q.particles]);
+    buildMotes(q.budget.motes);
     adaptiveScale = 1;
     frames = [];
     postKey = null;
@@ -410,15 +501,15 @@
       b.classList.toggle('ce-gfx-detailed', detailed);
     }
     if (lastState !== undefined) syncState(lastState, lastColorFor);
-    dirty = true;
+    wake();
     return q;
   }
 
-  function setReducedMotion(on) { reducedSetting = !!on; dirty = true; }
+  function setReducedMotion(on) { reducedSetting = !!on; wake(); }
 
   function graphicsInfo() {
     const px = [Math.round(size[0] * pixelRatio), Math.round(size[1] * pixelRatio)];
-    return { gpu: gpu || 'unknown GPU', detected, resolved: q, pixels: px, fps: Math.round(fps), adaptiveScale: Math.round(adaptiveScale * 100) / 100, postFailed: postFailed || !global.CEPost };
+    return { gpu: gpu || 'unknown GPU', level, detected, resolved: q, pixels: px, fps: Math.round(fps), adaptiveScale: Math.round(adaptiveScale * 100) / 100, postFailed: postFailed || !global.CEPost };
   }
   function getGraphics() { return Object.assign({}, saved); }
 
@@ -456,6 +547,15 @@
     ].join('\n'),
   };
 
+  // Run a post pass at a fraction of the frame (per-preset budget). EffectComposer sizes every pass to the
+  // full frame in addPass/setSize, so the pass's own setSize is wrapped to apply the scale.
+  function atScale(pass, k) {
+    if (!(k > 0 && k < 1)) return pass;
+    const setSize = pass.setSize.bind(pass);
+    pass.setSize = (w, h) => setSize(Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)));
+    return pass;
+  }
+
   function buildPost(w, h) {
     if (composer) { try { composer.dispose(); } catch (e) {} }
     composer = null; gradePass = null;
@@ -469,7 +569,7 @@
       c.setSize(w, h);
       c.addPass(new P.RenderPass(scene, camera));
       if (q.ao !== 'off') {
-        const ao = new P.GTAOPass(scene, camera, pw, ph);
+        const ao = atScale(new P.GTAOPass(scene, camera, pw, ph), q.budget.aoRes);
         ao.output = P.GTAOPass.OUTPUT.Default;
         ao.blendIntensity = 0.75;
         ao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.5, thickness: 1.0, scale: 1.0, samples: q.ao === 'high' ? 16 : 8 });
@@ -479,7 +579,7 @@
         ao.overrideVisibility = function () { base(); scene.traverse((o) => { if (o.userData.noAO) o.visible = false; }); };
         c.addPass(ao);
       }
-      if (q.bloom === 'on') c.addPass(new P.UnrealBloomPass(new THREE.Vector2(w, h), 0.5, 0.45, 0.92));
+      if (q.bloom === 'on') c.addPass(atScale(new P.UnrealBloomPass(new THREE.Vector2(w, h), 0.5, 0.45, 0.92), q.budget.bloomRes));
       c.addPass(new P.OutputPass());
       if (q.grade === 'on') { gradePass = new P.ShaderPass(GradeShader); c.addPass(gradePass); }
       if (q.antialias === 'smaa') c.addPass(new P.SMAAPass(pw, ph));
@@ -515,18 +615,22 @@
 
   /* ---------------- render loop ---------------- */
   let rafId = null;
+  // Something changed: render it on the next frame (restarts the loop if it went to sleep).
+  function wake() { dirty = true; start(); }
   function frame() {
-    rafId = global.requestAnimationFrame(frame);
+    rafId = null;
     if (!renderer || !scene || !camera) return;
-    if (global.document && global.document.hidden) { lastNow = 0; return; }
+    if (global.document && global.document.hidden) { lastNow = 0; rafId = global.requestAnimationFrame(frame); return; }
     const now = global.performance.now();
     const dt = lastNow ? Math.min(250, now - lastNow) : 16;
     lastNow = now;
     const moving = motionAllowed();
     const ambient = (moving && (q.background === 'animated' || q.particles !== 'off')) || q.showFps;
     const animating = moving && now < animUntil;
-    // Static scenes render only when something changed (cheaper than the pre-upgrade loop).
-    if (!ambient && !animating && !dirty) return;
+    // Static scenes render only when something changed, and the loop sleeps (no callbacks at all) until
+    // wake() — cheaper than the pre-upgrade loop.
+    if (!ambient && !animating && !dirty) { lastNow = 0; return; }
+    rafId = global.requestAnimationFrame(frame);
     dirty = false;
     if (moving) time += dt / 1000;
 
@@ -554,8 +658,9 @@
     const key = q.post && global.CEPost ? [q.ao, q.bloom, q.grade, q.antialias, w, h, pixelRatio].join('|') : 'none';
     if (key !== postKey) { postKey = key; buildPost(w, h); }
     if (gradePass) gradePass.uniforms.uAmount.value = 1;
-    if (composer) (globalThis.GameOptions ? globalThis.GameOptions.draw(composer.renderer, () => composer.render(dt / 1000)) : composer.render(dt / 1000));
-    else (globalThis.GameOptions ? globalThis.GameOptions.draw(renderer, () => renderer.render(scene, camera)) : renderer.render(scene, camera));
+    const draw = composer ? () => { composer.render(dt / 1000); return true; } : () => { renderer.render(scene, camera); return true; };
+    // A frame the FPS limiter skips is drawn on a later callback.
+    if (!(globalThis.GameOptions ? globalThis.GameOptions.draw(composer ? composer.renderer : renderer, draw) : draw())) dirty = true;
   }
   function start() { if (rafId == null && renderer) rafId = global.requestAnimationFrame(frame); }
   function stop() {
@@ -589,10 +694,10 @@
     pixelRatio = Math.min(global.devicePixelRatio || 1, q.cap) * q.scale * adaptiveScale;
     renderer.setPixelRatio(pixelRatio);
     applySize(w, h);
-    dirty = true;
+    wake();
   }
 
-  function setTableLight(hex) { if (hex) glow.material.color.set(hex); dirty = true; }
+  function setTableLight(hex) { if (hex) glow.material.color.set(hex); wake(); }
 
   // positions: x,y for each card index (i), count n
   function layoutPositions(n, baseX, baseY, spacing) {
@@ -627,11 +732,11 @@
     used = 0;
     for (const c of cardMeshes) c.mesh.visible = false;
     drawStack.visible = false;
-    dirty = true;
+    wake();
   }
   function placeCards(cards, x, y, z, colorHex) {
     for (let i = 0; i < cards.length; i++) put(cards[i], colorHex || '#ffffff', x + i * CARD_W, y, z, 0);
-    dirty = true;
+    wake();
   }
 
   function fan(seatX, seatZ, facing, count) {
@@ -688,7 +793,7 @@
       if (topCardId !== null && motionAllowed()) { dropStart = global.performance.now(); animUntil = dropStart + 340; dropMesh = top.mesh; }
       topCardId = top.card.id;
     } else dropMesh = null;
-    dirty = true;
+    wake();
   }
   let dropMesh = null;
   function animateDrop(now, moving) {
@@ -710,7 +815,7 @@
     });
     drawPile(40);
     glow.material.color.set(theme && theme.accent ? theme.accent : '#ff7a4d').multiplyScalar(q && q.bloom === 'on' ? 1.4 : 0.9);
-    dirty = true;
+    wake();
   }
 
   global.CERender = {

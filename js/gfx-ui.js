@@ -16,7 +16,7 @@
     t_plain: 'Plain', t_detailed: 'Detailed', t_static: 'Static', t_animated: 'Animated',
     adaptive: 'Adaptive resolution', showFps: 'Show frame rate',
     postUnavailable: 'Post-processing is unavailable on this device, so the game renders without it.',
-    unknownGpu: 'unknown GPU',
+    unknownGpu: 'unknown GPU', level: 'Level {n}',
     w_noShadows: 'no shadows', w_shadows: '{n}² shadows', w_ao: 'ambient occlusion', w_aoHigh: 'full ambient occlusion',
     w_bloom: 'bloom', w_reflections: 'reflections', w_particles: 'particles', w_noAA: 'no anti-aliasing',
   };
@@ -32,7 +32,7 @@
     t_plain: 'Simple', t_detailed: 'Detallado', t_static: 'Estático', t_animated: 'Animado',
     adaptive: 'Resolución adaptativa', showFps: 'Mostrar cuadros por segundo',
     postUnavailable: 'El posprocesado no está disponible en este dispositivo, así que el juego se muestra sin él.',
-    unknownGpu: 'GPU desconocida',
+    unknownGpu: 'GPU desconocida', level: 'Nivel {n}',
     w_noShadows: 'sin sombras', w_shadows: 'sombras de {n}²', w_ao: 'oclusión ambiental', w_aoHigh: 'oclusión ambiental completa',
     w_bloom: 'resplandor', w_reflections: 'reflejos', w_particles: 'partículas', w_noAA: 'sin suavizado',
   };
@@ -48,7 +48,7 @@
     t_plain: 'Schlicht', t_detailed: 'Detailliert', t_static: 'Statisch', t_animated: 'Animiert',
     adaptive: 'Adaptive Auflösung', showFps: 'Bildrate anzeigen',
     postUnavailable: 'Nachbearbeitung ist auf diesem Gerät nicht verfügbar, daher wird ohne sie gerendert.',
-    unknownGpu: 'unbekannte GPU',
+    unknownGpu: 'unbekannte GPU', level: 'Stufe {n}',
     w_noShadows: 'keine Schatten', w_shadows: '{n}²-Schatten', w_ao: 'Umgebungsverdeckung', w_aoHigh: 'volle Umgebungsverdeckung',
     w_bloom: 'Leuchteffekt', w_reflections: 'Spiegelungen', w_particles: 'Partikel', w_noAA: 'keine Kantenglättung',
   };
@@ -63,7 +63,7 @@
     t_plain: 'Simple', t_detailed: 'Détaillé', t_static: 'Statique', t_animated: 'Animé',
     adaptive: 'Résolution adaptative', showFps: 'Afficher la fréquence d’images',
     postUnavailable: 'Le post-traitement n’est pas disponible sur cet appareil ; le jeu s’affiche sans lui.',
-    unknownGpu: 'GPU inconnu',
+    unknownGpu: 'GPU inconnu', level: 'Niveau {n}',
     w_noShadows: 'sans ombres', w_shadows: 'ombres {n}²', w_ao: 'occlusion ambiante', w_aoHigh: 'occlusion ambiante complète',
     w_bloom: 'halo lumineux', w_reflections: 'reflets', w_particles: 'particules', w_noAA: 'sans anticrénelage',
   };
@@ -79,7 +79,7 @@
     t_plain: 'Simples', t_detailed: 'Detalhado', t_static: 'Estático', t_animated: 'Animado',
     adaptive: 'Resolução adaptativa', showFps: 'Mostrar taxa de quadros',
     postUnavailable: 'O pós-processamento não está disponível neste dispositivo, então o jogo é exibido sem ele.',
-    unknownGpu: 'GPU desconhecida',
+    unknownGpu: 'GPU desconhecida', level: 'Nível {n}',
     w_noShadows: 'sem sombras', w_shadows: 'sombras {n}²', w_ao: 'oclusão de ambiente', w_aoHigh: 'oclusão de ambiente completa',
     w_bloom: 'brilho', w_reflections: 'reflexos', w_particles: 'partículas', w_noAA: 'sem antisserrilhamento',
   };
@@ -94,7 +94,7 @@
     t_plain: 'Semplice', t_detailed: 'Dettagliato', t_static: 'Statico', t_animated: 'Animato',
     adaptive: 'Risoluzione adattiva', showFps: 'Mostra frequenza fotogrammi',
     postUnavailable: 'La post-elaborazione non è disponibile su questo dispositivo, quindi il gioco viene mostrato senza.',
-    unknownGpu: 'GPU sconosciuta',
+    unknownGpu: 'GPU sconosciuta', level: 'Livello {n}',
     w_noShadows: 'nessuna ombra', w_shadows: 'ombre {n}²', w_ao: 'occlusione ambientale', w_aoHigh: 'occlusione ambientale completa',
     w_bloom: 'bagliore', w_reflections: 'riflessi', w_particles: 'particelle', w_noAA: 'nessun anti-aliasing',
   };
@@ -148,7 +148,8 @@
 
   function summaryText(info) {
     const gpu = info.gpu && info.gpu !== 'unknown GPU' ? info.gpu : t('unknownGpu');
-    return gpu + ' · ' + G.describe(info.resolved, info.pixels, words());
+    const lvl = info.level != null ? ' · ' + t('level').replace('{n}', info.level) : '';
+    return gpu + lvl + ' · ' + G.describe(info.resolved, info.pixels, words());
   }
 
   /**

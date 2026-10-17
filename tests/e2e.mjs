@@ -96,6 +96,7 @@ async function runPass(browser, pass, viewport, hasTouch) {
     if (p !== 'high') throw new Error('High not applied: ' + p);
     const summary = await page.textContent('#gfx-summary');
     if (!/1024² shadows/.test(summary) || !/px/.test(summary)) throw new Error('summary not updated for High: ' + summary);
+    if (!/ · Level 0 · /.test(summary)) throw new Error('summary lacks the hardware level: ' + summary);
     if (!/From preset \(On\)/.test(await page.textContent('#gfx-bloom option[value="preset"]'))) throw new Error('bloom select lacks "From preset (On)"');
     await page.selectOption('#gfx-bloom', 'off');
     const live = await page.evaluate(() => ({ r: CERender.graphicsInfo().resolved, detailed: document.body.classList.contains('ce-gfx-detailed') }));
