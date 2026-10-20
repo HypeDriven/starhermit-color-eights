@@ -191,6 +191,24 @@
     applySettings();
     global.addEventListener('resize', () => global.CERender.resize());
     doc().addEventListener('keydown', onKey);
+    doc().addEventListener('pointerdown', (e) => {
+      gamePressed = !!(e.target && e.target.closest && e.target.closest('.ce-game'));
+    }, true);
+    ['pointerup', 'pointercancel'].forEach((name) => doc().addEventListener(name, () => {
+      if (!gamePressed) return;
+      gamePressed = false;
+      // The click follows this release in the same task; the held-back render runs after it.
+      if (gameRenderHeld) setTimeout(() => {
+        if (!gameRenderHeld || !session || !doc().querySelector('.ce-game')) return;
+        const open = overlayEl, active = doc().activeElement;
+        renderGame();
+        // A dialog that click opened (Pause) stays open over the rebuilt table.
+        if (open && open === overlayEl && !open.isConnected) {
+          global.CEUI.append(open);
+          if (active && open.contains(active)) active.focus({ preventScroll: true });
+        }
+      }, 0);
+    }, true));
     doc().addEventListener('visibilitychange', () => {
       if (!session || session.finished) return;
       if (doc().hidden) session.pause();
@@ -646,11 +664,26 @@
     renderGame();
   }
 
+  // A press on the table holds its re-render until the release: every AI move
+  // rebuilds the screen, and a click only fires when press and release land on
+  // the same element.
+  let gamePressed = false, gameRenderHeld = false;
+  function focusKey(b) {
+    if (!b || b.tagName !== 'BUTTON' || !b.closest('.ce-game') || b.closest('.ce-overlay')) return null;
+    if (b.dataset.cardId) return { card: b.dataset.cardId };
+    if (b.classList.contains('ce-draw-pile')) return { draw: true };
+    return { text: b.textContent };
+  }
+
   function renderGame() {
     if (!session) return;
+    if (gamePressed) { gameRenderHeld = true; return; }
+    gameRenderHeld = false;
     const R = global.CERules;
     const st = session.state;
     const screen = doc().getElementById('ce-ui');
+    // Keyboard focus moves to the same control on the rebuilt table.
+    const refocus = focusKey(doc().activeElement);
     screen.innerHTML = '';
 
     // header
@@ -757,6 +790,10 @@
     // pending color choice for the human
     if (st.pendingColorChoice && st.players[st.pendingColorChoice.player].id === session.humanId) {
       showColorChooser();
+    } else if (refocus) {
+      const again = [...screen.querySelectorAll('button')].find((b) => refocus.card ? b.dataset.cardId === refocus.card
+        : refocus.draw ? b.classList.contains('ce-draw-pile') : b.textContent === refocus.text);
+      if (again && !again.disabled) again.focus({ preventScroll: true });
     }
   }
 
