@@ -7,7 +7,7 @@
     "assets/ui-style.json": {"sha256": "d5abf25158785b33bfae3b7da65de171e18dcb39e8c6996b8d5ad22cde1449cd", "size": 6367},
     "cover.jpg": {"sha256": "3820b9f2b5d706bfe3609a57485249452b0a2f6ffb148adc3f355e6fe64d1df3", "size": 194570},
     "icon.png": {"sha256": "e63c261c9d6d335ca75718466363ba4c65d9ef8f34abb6763d944f87c79911e9", "size": 9138},
-    "index.html": {"sha256": "6572d1e6e3b42230f75cc6fc940ffd464a443cee40ea6f0d4b9cdd3942fb58fe", "size": 1760},
+    "index.html": {"sha256": "ac377a2ee2c2ed12e2c2b97690241d568ebf9ac0d1586702d746d12790730237", "size": 1760},
     "js/content.js": {"sha256": "2c06598fe5e97ecadd96f39305185553f5103dbc08899376fc7a32295591635a", "size": 22056},
     "js/i18n.js": {"sha256": "46b66c8cae17615cc48bcdc5b697cc799866c63660a75486a5b0ed92f406be98", "size": 1680},
     "js/platform-strings.js": {"sha256": "6b5a261eb565794b14fcdd96258aa1636d9d88915348cde493eab1ee8fd93fc3", "size": 6417},
@@ -53,7 +53,7 @@
     "sfx/win-applause-brief.opus": {"sha256": "a4bcb6b259d3a01d02f9aceadcf1a77f9c70edd000f6961498a06263a8a8bf2f", "size": 43634},
     "sfx/win-chime-arpeggio.opus": {"sha256": "a79585b2569c54a850af88c239fc228d9bb5e1705528d488e60a7ed438b47d2e", "size": 27315},
     "sfx/win-fanfare-brass.opus": {"sha256": "bc640e05fcc64c6f4966760dba59af8c519ccd3780a1dd15df3af02df4548c15", "size": 41673},
-    "starhermit.txt": {"sha256": "5fcb10116f27879e27626a2a58ae4ef2d3715d3e3a1770b1344fc2a05550c996", "size": 1434}
+    "starhermit.txt": {"sha256": "bb41ff78113fac9bcce47568420f5b5e313950ccd7854d3ba675e3e0e739ef1b", "size": 1434}
   },
   "excluded": ["coverart.png", "node_modules/", "package-lock.json", "package.json", "server.js", "spec.md", "tests/", "tools/", "tsconfig.json"],
   "format": 1

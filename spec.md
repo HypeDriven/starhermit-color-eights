@@ -4,14 +4,14 @@
 **Pitch:** a shedding card game in a lamp-lit lounge — match the discard by color or rank, weaponize Skip, Reverse, Draw Two and Wilds, and be the first to empty your hand.
 **Genre:** turn-based card game, solo versus 1–3 deterministic AI opponents.
 **Session length:** one round is 2–6 minutes (2 players) to 8–12 minutes (4 players, stacking).
-**Platforms:** a StarHermit engine script game (engine 1.16.3, host API 1.18): played natively by the StarHermit client and in desktop and mobile browsers (portrait and landscape) by the engine's web runtime, from one package.
+**Platforms:** a StarHermit engine script game (engine 1.16.4, host API 1.18): played natively by the StarHermit client and in desktop and mobile browsers (portrait and landscape) by the engine's web runtime, from one package.
 **Rendering:** a `starhermit:scene` lounge table (felt, wood rim, pendant-lamp pool of light, discard pile, draw-pile stack, opponents' face-down fans) with looks per graphics level and post effects, under a `starhermit:ui` layer that carries every control.
 
 ## 1. Overview and file map
 
 | Path | Responsibility |
 |---|---|
-| `starhermit.txt` | Package manifest: name, description, owner, `server=score-script.js`, `cover=cover.jpg`, `launch=index.html`, `engine.api=1`, `engine.entry=native/main.ts`, `engine.version=1.16.3`, `engine.minor=18`, `engine.capabilities=platform,storage,clipboard`, the `control.*` and `engine.gamepad.*` actions. |
+| `starhermit.txt` | Package manifest: name, description, owner, `server=score-script.js`, `cover=cover.jpg`, `launch=index.html`, `engine.api=1`, `engine.entry=native/main.ts`, `engine.version=1.16.4`, `engine.minor=18`, `engine.capabilities=platform,storage,clipboard`, the `control.*` and `engine.gamepad.*` actions. |
 | `index.html`, `starhermit-files.json` | The engine's web loader and file index, written by `npm run package` (`starhermit package --web .`); never edited by hand. |
 | `native/main.ts` | Entry module: screen flow, the session wiring, the human seat's commands and the lesson gate, events → sounds and announcements, progress and achievements, results and score posting, Save & quit / Resume round, input actions and the lifecycle. Time is the runtime's fixed steps. |
 | `native/screens.ts` | Every screen, the table HUD, the dialogs and the toast in `starhermit:ui`; the hand-drawn cards, piles, colour chip and chooser. |
@@ -232,7 +232,7 @@ The engine runtime provides the platform (`starhermit:platform`, `starhermit:sto
 
 | Feature | Status |
 |---|---|
-| Packaging (`starhermit.txt`) | Used: engine 1.16.3 pin, entry `native/main.ts`, capabilities platform, storage, clipboard; `launch=index.html` is the engine's web loader. |
+| Packaging (`starhermit.txt`) | Used: engine 1.16.4 pin, entry `native/main.ts`, capabilities platform, storage, clipboard; `launch=index.html` is the engine's web loader. |
 | Identity | `player()`: signed in, the title shows "Playing as <displayName> · sync status"; a guest sees the offline line and **Sign in with StarHermit** (`requestSignIn()`). Signing out (`onSessionEnded`) shows a toast and play continues locally. |
 | Save | `saves`: `{ v: 1, progress, snapshot }` on the device and in the cloud slot `game:<slug>`; a conflict merges both devices' progress (`CEStore.mergeDocs`: goals met on either side and the higher best per stage, every lesson, achievements at their earliest unlock, daily and challenge completion, the larger lifetime stats; the running streak and the saved round stay this device's); an account save replacing the device's is merged in. |
 | Migration | The browser build's cloud save (the JS SDK's zipped `save.json` with checksummed `{ settings, progress }`) shows as foreign: its progress is merged in, its palette and practice options carried over, and the merge saved with `replaceForeign`. The old per-player settings groups (`audio`, `graphics`, `accessibility`, `camera`, `rulesOptions`, `ui.language`, …) carry the palette and practice options over and are then removed. A guest's old browser localStorage progress does not migrate. |
