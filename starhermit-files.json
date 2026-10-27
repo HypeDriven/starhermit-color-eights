@@ -23,7 +23,7 @@
     "native/platform.ts": {"sha256": "5672e4f423b5f29e378e1bb35ea08adc33fefeecc92ebb548e92a283d36d2206", "size": 10298},
     "native/quality.ts": {"sha256": "c9f265c6654c836b87f019e82f76b2fbef90443be559dcf0a503758b496b4f0c", "size": 4010},
     "native/render.ts": {"sha256": "1e4155e493a32bf3cf8317e8c36564a911a99fd11290659afcca47f335d76083", "size": 29289},
-    "native/screens.ts": {"sha256": "1f282f545b7c0f214028cf2bc7a8c3a15b60ed22dbb0cfee9880c38114677772", "size": 39486},
+    "native/screens.ts": {"sha256": "b3187b2734f7007e73ff6ade2bb1631fdf214ac8b4f54b76ae67f917717187c8", "size": 39970},
     "native/style.ts": {"sha256": "0ea376483158127363b7606f35c25c08e2a3558b89d988e90ab75c68e0361a18", "size": 2475},
     "score-script.js": {"sha256": "762eda4323fbe38bb29abf1117ec1d637253e288024f9aa8fcb5735b81ef2902", "size": 2488},
     "sfx/achievement-warm-chime.opus": {"sha256": "f8d692d958a9e8df10f1f9310729e381cdf4b63f2aada8031eb8ec49eb5cffe5", "size": 39512},

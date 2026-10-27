@@ -308,7 +308,15 @@ function wrapWords(text: string, max: number, size: number): string[] {
   return lines;
 }
 /** The glyph and the label, white with a 1-px shadow, centred in the box (the browser build's card face). */
-function cardText(x: number, y: number, w: number, h: number, glyph: GlyphName | null, label: string, size: number, a: number, inline: boolean): void {
+function cardText(x: number, y: number, w: number, h: number, glyph: GlyphName | null, label: string, size0: number, a: number, inline: boolean): void {
+  // Smaller type where the longest word or the whole block would not fit (short landscape, long names).
+  let size = size0;
+  const fits = (sz: number): boolean => {
+    const longest = Math.max(...label.split(/\s+/).map((wd) => draw.measureText(wd, { size: sz, weight: "700" }).width));
+    const n = wrapWords(label, w - 6, sz).length;
+    return longest <= w - 4 && n * sz * 1.15 + (glyph ? sz * 1.15 : 0) <= h - 4;
+  };
+  while (size > size0 * 0.6 && !fits(size)) size *= 0.92;
   const ink = alpha("#ffffff", a), shade = alpha("#000000", 0.66 * a);
   const g = glyph ? size * 0.5 : 0;
   const lh = size * 1.15;
