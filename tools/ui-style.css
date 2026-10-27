@@ -1,0 +1,67 @@
+/* Color Eights — the browser build's css/style.css rewritten class-based for
+   the engine's UI (`npm run css` converts it into assets/ui-style.json).
+   Element selectors, ids, body classes, @media and clamp() do not convert:
+   every widget names its classes, the breakpoints and clamped sizes are
+   picked in native/screens.ts from the window's logical size, the cards,
+   piles and colour chip are drawn by hand, and Surface detail's richer
+   panels (body.ce-gfx-detailed) are the `.panel-detailed` class that
+   native/style.ts swaps in on the detailed graphics levels. High contrast,
+   larger text and reduced motion are the runtime's. */
+
+:root {
+  --bg: #0c0a0e;
+  --text: #f4efe9;
+  --muted: #d9cec2;
+  --soft: #e9dfd5;
+  --accent: #ff7a4d;
+  --accent-hover: #ff9d6b;
+  --ink-on-accent: #1c0d08;
+  --focus: #ffcf4d;
+  --panel: #17121c;
+}
+
+* { box-sizing: border-box; }
+
+/* ------------------------------------------------------------- buttons */
+.btn {
+  min-height: 44px; min-width: 44px; padding: 10px 18px;
+  background: #ffffff1f; color: #ffffff; border-radius: 11px;
+  font-size: 17px; text-align: center;
+}
+.btn:hover { background: #ffffff3a; }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.5; }
+.btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.btn-primary { background: var(--accent); color: var(--ink-on-accent); font-weight: 700; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary-detailed { background: linear-gradient(180deg, #ff9372, #ff7a4d 60%); box-shadow: 0 2px 10px #ff7a4d44; }
+.btn-stage { text-align: left; font-size: 15px; padding: 8px 16px; }
+.btn-mastery { border: 1px solid #ffcf4d88; }
+.btn-small { font-size: 15px; padding: 8px 14px; }
+
+/* ------------------------------------------------------------- text */
+.h1 { font-size: 40px; font-weight: 700; color: var(--text); letter-spacing: 0.4px; }
+.h1-small { font-size: 28px; font-weight: 700; color: var(--text); }
+.h2 { font-size: 28px; font-weight: 700; color: var(--text); }
+.game-title { font-size: 28px; font-weight: 700; color: var(--text); }
+.game-title-small { font-size: 20px; font-weight: 700; color: var(--text); }
+.tagline { color: var(--muted); font-size: 17px; }
+.body { color: var(--soft); font-size: 17px; }
+.field-label { color: var(--text); font-size: 17px; }
+.turn-label { color: #ffd9c8; font-size: 19px; font-weight: 600; }
+.turn-label-small { color: #ffd9c8; font-size: 16px; font-weight: 600; }
+.chip-text { color: var(--text); font-size: 17px; }
+.draw-count { color: #dcd3ca; font-size: 16px; }
+.lesson-banner { color: #ffe9c9; font-size: 17px; }
+.goal-line { color: #ffcf4d; font-weight: 600; font-size: 17px; }
+.breakdown { color: var(--soft); font-size: 15px; }
+.challenge-desc { color: #cfc4b8; font-size: 15px; }
+.note { color: #cfc4b8; font-size: 15px; }
+
+/* ------------------------------------------------------------- boxes */
+.panel { background: var(--panel); border-radius: 16px; padding: 22px; }
+.panel-detailed { background: linear-gradient(180deg, #1f1826, #151019); border-radius: 16px; padding: 22px; box-shadow: 0 0 0 1px #ffffff1a, 0 20px 50px #000000cc; }
+.settings-row { border-top: 1px solid #ffffff22; padding: 8px 0; }
+.toast { background: #14101cf0; color: #ffffff; border: 1px solid #ffffff40; border-radius: 10px; padding: 10px 16px; text-align: center; font-size: 16px; }
+.key-art { border-radius: 16px; box-shadow: 0 8px 28px #000000aa; }
+.results-art { border-radius: 14px; box-shadow: 0 6px 22px #000000aa; }

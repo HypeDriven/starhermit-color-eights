@@ -1,11 +1,36 @@
 name=Color Eights
 description=Match colors or ranks, play action cards, and race to empty your hand in a lively shedding card game.
-launch=index.html
 owner=2712e04e-461b-4d23-81ae-e40b429128a8
 server=score-script.js
 cover=cover.jpg
+
+# StarHermit engine script game: one package, played natively by the
+# StarHermit client and in browsers by the engine's web runtime. Browsers open
+# launch=index.html, the loader `npm run package` writes (it pins the engine
+# on wiki.starhermit.com by hash; never edit it). Re-run `npm run package`
+# after every change and commit index.html + starhermit-files.json.
+launch=index.html
+engine.api=1
+engine.entry=native/main.ts
+engine.version=1.16.0
+engine.minor=18
+engine.capabilities=platform,storage,clipboard
+
+# Keyboard controls (players rebind keys and pads in the runtime's Options).
+# The table is played with the pointer, touch, or Tab / arrows and Enter
+# through the cards and buttons (the D-pad and A on a gamepad).
 control.cancel=Escape | Pause / close panel
 control.pause=KeyP | Pause
 control.draw=KeyD | Draw a card
 control.hint=KeyH | Hint
 control.undo=KeyU | Undo
+engine.group.cancel=Table
+
+# Gamepad defaults: the D-pad or left stick moves through the cards and
+# buttons, A plays or presses, B closes a panel or pauses, Start pauses,
+# X draws, Y hints, Select undoes.
+engine.gamepad.cancel=East
+engine.gamepad.pause=Start
+engine.gamepad.draw=West
+engine.gamepad.hint=North
+engine.gamepad.undo=Select

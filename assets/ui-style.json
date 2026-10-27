@@ -1,0 +1,299 @@
+{
+  "styles": {
+    ".btn": {
+      "background": "#ffffff1f",
+      "radius": 11,
+      "padding": {
+        "top": 10,
+        "end": 18,
+        "bottom": 10,
+        "start": 18
+      },
+      "minWidth": 44,
+      "minHeight": 44,
+      "text": {
+        "color": "#ffffff",
+        "size": 17,
+        "align": "center"
+      },
+      "hovered": {
+        "background": "#ffffff3a"
+      },
+      "focusVisible": {
+        "focusRing": {
+          "width": 3,
+          "color": "$focus",
+          "offset": 2
+        }
+      },
+      "pressed": {
+        "translate": {
+          "x": 0,
+          "y": 1
+        }
+      },
+      "disabled": {
+        "opacity": 0.5
+      }
+    },
+    ".btn-primary": {
+      "background": "$accent",
+      "text": {
+        "color": "$ink-on-accent",
+        "weight": "700"
+      },
+      "hovered": {
+        "background": "$accent-hover"
+      }
+    },
+    ".btn-primary-detailed": {
+      "background": {
+        "type": "linear",
+        "stops": [
+          "#ff9372",
+          {
+            "color": "#ff7a4d",
+            "at": 0.6
+          }
+        ]
+      },
+      "shadow": {
+        "y": 2,
+        "blur": 10,
+        "color": "#ff7a4d44"
+      }
+    },
+    ".btn-stage": {
+      "padding": {
+        "top": 8,
+        "end": 16,
+        "bottom": 8,
+        "start": 16
+      },
+      "text": {
+        "size": 15,
+        "align": "start"
+      }
+    },
+    ".btn-mastery": {
+      "border": {
+        "width": 1,
+        "color": "#ffcf4d88",
+        "style": "solid"
+      }
+    },
+    ".btn-small": {
+      "padding": {
+        "top": 8,
+        "end": 14,
+        "bottom": 8,
+        "start": 14
+      },
+      "text": {
+        "size": 15
+      }
+    },
+    ".h1": {
+      "text": {
+        "color": "$text",
+        "size": 40,
+        "weight": "700",
+        "letterSpacing": 0.4
+      }
+    },
+    ".h1-small": {
+      "text": {
+        "color": "$text",
+        "size": 28,
+        "weight": "700"
+      }
+    },
+    ".h2": {
+      "text": {
+        "color": "$text",
+        "size": 28,
+        "weight": "700"
+      }
+    },
+    ".game-title": {
+      "text": {
+        "color": "$text",
+        "size": 28,
+        "weight": "700"
+      }
+    },
+    ".game-title-small": {
+      "text": {
+        "color": "$text",
+        "size": 20,
+        "weight": "700"
+      }
+    },
+    ".tagline": {
+      "text": {
+        "color": "$muted",
+        "size": 17
+      }
+    },
+    ".body": {
+      "text": {
+        "color": "$soft",
+        "size": 17
+      }
+    },
+    ".field-label": {
+      "text": {
+        "color": "$text",
+        "size": 17
+      }
+    },
+    ".turn-label": {
+      "text": {
+        "color": "#ffd9c8",
+        "size": 19,
+        "weight": "600"
+      }
+    },
+    ".turn-label-small": {
+      "text": {
+        "color": "#ffd9c8",
+        "size": 16,
+        "weight": "600"
+      }
+    },
+    ".chip-text": {
+      "text": {
+        "color": "$text",
+        "size": 17
+      }
+    },
+    ".draw-count": {
+      "text": {
+        "color": "#dcd3ca",
+        "size": 16
+      }
+    },
+    ".lesson-banner": {
+      "text": {
+        "color": "#ffe9c9",
+        "size": 17
+      }
+    },
+    ".goal-line": {
+      "text": {
+        "color": "#ffcf4d",
+        "size": 17,
+        "weight": "600"
+      }
+    },
+    ".breakdown": {
+      "text": {
+        "color": "$soft",
+        "size": 15
+      }
+    },
+    ".challenge-desc": {
+      "text": {
+        "color": "#cfc4b8",
+        "size": 15
+      }
+    },
+    ".note": {
+      "text": {
+        "color": "#cfc4b8",
+        "size": 15
+      }
+    },
+    ".panel": {
+      "background": "$panel",
+      "radius": 16,
+      "padding": 22
+    },
+    ".panel-detailed": {
+      "background": {
+        "type": "linear",
+        "stops": ["#1f1826", "#151019"]
+      },
+      "radius": 16,
+      "shadow": [
+        {
+          "spread": 1,
+          "color": "#ffffff1a"
+        },
+        {
+          "y": 20,
+          "blur": 50,
+          "color": "#000000cc"
+        }
+      ],
+      "padding": 22
+    },
+    ".settings-row": {
+      "border": {
+        "width": {
+          "top": 1
+        },
+        "color": {
+          "top": "#ffffff22"
+        },
+        "style": "solid"
+      },
+      "padding": {
+        "top": 8,
+        "end": 0,
+        "bottom": 8,
+        "start": 0
+      }
+    },
+    ".toast": {
+      "background": "#14101cf0",
+      "border": {
+        "width": 1,
+        "color": "#ffffff40",
+        "style": "solid"
+      },
+      "radius": 10,
+      "padding": {
+        "top": 10,
+        "end": 16,
+        "bottom": 10,
+        "start": 16
+      },
+      "text": {
+        "color": "#ffffff",
+        "size": 16,
+        "align": "center"
+      }
+    },
+    ".key-art": {
+      "radius": 16,
+      "shadow": {
+        "y": 8,
+        "blur": 28,
+        "color": "#000000aa"
+      }
+    },
+    ".results-art": {
+      "radius": 14,
+      "shadow": {
+        "y": 6,
+        "blur": 22,
+        "color": "#000000aa"
+      }
+    }
+  },
+  "animations": {},
+  "tokens": {
+    "accent": "#ff7a4d",
+    "accent-hover": "#ff9d6b",
+    "bg": "#0c0a0e",
+    "focus": "#ffcf4d",
+    "ink-on-accent": "#1c0d08",
+    "muted": "#d9cec2",
+    "panel": "#17121c",
+    "soft": "#e9dfd5",
+    "text": "#f4efe9"
+  },
+  "layouts": {},
+  "dropped": []
+}

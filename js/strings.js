@@ -7,15 +7,6 @@
 (function (root) {
   'use strict';
   var ROWS = [
-    // ---- boot
-    ['Loading…', 'Cargando…', 'Wird geladen …', 'Chargement…', 'Carregando…', 'Caricamento…'],
-    ['The game is taking too long to start.', 'El juego está tardando demasiado en iniciar.', 'Das Spiel braucht zu lange zum Starten.', 'Le jeu met trop de temps à démarrer.', 'O jogo está demorando demais para iniciar.', 'Il gioco impiega troppo ad avviarsi.'],
-    ['Check your connection and try again.', 'Revisa tu conexión e inténtalo de nuevo.', 'Prüfe deine Verbindung und versuch es erneut.', 'Vérifiez votre connexion et réessayez.', 'Verifique sua conexão e tente de novo.', 'Controlla la connessione e riprova.'],
-    ['Retry', 'Reintentar', 'Erneut versuchen', 'Réessayer', 'Tentar de novo', 'Riprova'],
-    ['The game failed to start ({error}).', 'El juego no pudo iniciar ({error}).', 'Das Spiel konnte nicht starten ({error}).', 'Le jeu n’a pas pu démarrer ({error}).', 'O jogo não conseguiu iniciar ({error}).', 'Impossibile avviare il gioco ({error}).'],
-    ['The game failed to start.', 'El juego no pudo iniciar.', 'Das Spiel konnte nicht starten.', 'Le jeu n’a pas pu démarrer.', 'O jogo não conseguiu iniciar.', 'Impossibile avviare il gioco.'],
-    ['Color Eights needs WebGL, which is unavailable in this browser. Your settings and progress are preserved.', 'Color Eights necesita WebGL, que no está disponible en este navegador. Tu configuración y tu progreso se conservan.', 'Color Eights braucht WebGL, das in diesem Browser nicht verfügbar ist. Einstellungen und Fortschritt bleiben erhalten.', 'Color Eights nécessite WebGL, indisponible dans ce navigateur. Vos paramètres et votre progression sont conservés.', 'Color Eights precisa de WebGL, que não está disponível neste navegador. Suas configurações e seu progresso foram preservados.', 'Color Eights richiede WebGL, non disponibile in questo browser. Impostazioni e progressi sono conservati.'],
-    ['Player {id}', 'Jugador {id}', 'Spieler {id}', 'Joueur {id}', 'Jogador {id}', 'Giocatore {id}'],
     // ---- title / account
     ['Match the discard by color or rank. Empty your hand first.', 'Iguala el descarte por color o número. Vacía tu mano primero.', 'Bediene den Ablagestapel nach Farbe oder Wert. Leere als Erste deine Hand.', 'Jouez sur la défausse par couleur ou par valeur. Videz votre main en premier.', 'Combine com o descarte pela cor ou pelo número. Esvazie sua mão primeiro.', 'Abbina lo scarto per colore o valore. Svuota la mano per primo.'],
     ['Resume round', 'Continuar ronda', 'Runde fortsetzen', 'Reprendre la manche', 'Continuar rodada', 'Riprendi la partita'],
@@ -94,7 +85,6 @@
     ['Draw from the pile, {n} cards left', 'Robar del mazo, quedan {n} cartas', 'Vom Stapel ziehen, noch {n} Karten', 'Piocher, {n} cartes restantes', 'Comprar da pilha, restam {n} cartas', 'Pesca dal mazzo, restano {n} carte'],
     ['Top of discard: {card}', 'Carta superior del descarte: {card}', 'Oben auf dem Ablagestapel: {card}', 'Dessus de la défausse : {card}', 'Topo do descarte: {card}', 'In cima allo scarto: {card}'],
     ['none', 'ninguna', 'keine', 'aucune', 'nenhuma', 'nessuna'],
-    ['Your hand', 'Tu mano', 'Deine Hand', 'Votre main', 'Sua mão', 'La tua mano'],
     ['not playable: {reason}', 'no jugable: {reason}', 'nicht spielbar: {reason}', 'injouable : {reason}', 'não jogável: {reason}', 'non giocabile: {reason}'],
     ['Hint', 'Pista', 'Hinweis', 'Indice', 'Dica', 'Suggerimento'],
     ['Undo', 'Deshacer', 'Rückgängig', 'Annuler', 'Desfazer', 'Annulla'],
@@ -111,18 +101,11 @@
     ['Save & quit to menu', 'Guardar y salir al menú', 'Speichern und zum Menü', 'Enregistrer et quitter vers le menu', 'Salvar e sair para o menu', 'Salva ed esci al menu'],
     ['Quit without saving', 'Salir sin guardar', 'Beenden ohne Speichern', 'Quitter sans enregistrer', 'Sair sem salvar', 'Esci senza salvare'],
     ['Close', 'Cerrar', 'Schließen', 'Fermer', 'Fechar', 'Chiudi'],
-    ['Music', 'Música', 'Musik', 'Musique', 'Música', 'Musica'],
-    ['Effects', 'Efectos', 'Effekte', 'Effets', 'Efeitos', 'Effetti'],
-    ['Ambience', 'Ambiente', 'Atmosphäre', 'Ambiance', 'Ambiente', 'Ambiente'],
-    ['Mute all audio', 'Silenciar todo el audio', 'Gesamten Ton stummschalten', 'Couper tout le son', 'Silenciar todo o áudio', 'Silenzia tutto l’audio'],
     ['Color palette', 'Paleta de colores', 'Farbpalette', 'Palette de couleurs', 'Paleta de cores', 'Tavolozza dei colori'],
     ['standard', 'estándar', 'Standard', 'standard', 'padrão', 'standard'],
     ['contrast', 'contraste', 'Kontrast', 'contraste', 'contraste', 'contrasto'],
     ['deuteranopia', 'deuteranopía', 'Deuteranopie', 'deutéranopie', 'deuteranopia', 'deuteranopia'],
     ['tritanopia', 'tritanopía', 'Tritanopie', 'tritanopie', 'tritanopia', 'tritanopia'],
-    ['Reduced motion', 'Movimiento reducido', 'Reduzierte Bewegung', 'Animations réduites', 'Movimento reduzido', 'Movimento ridotto'],
-    ['High contrast', 'Alto contraste', 'Hoher Kontrast', 'Contraste élevé', 'Alto contraste', 'Contrasto elevato'],
-    ['Larger text', 'Texto más grande', 'Größerer Text', 'Texte agrandi', 'Texto maior', 'Testo più grande'],
     // ---- achievements / results
     ['Achievement unlocked: {name}', 'Logro desbloqueado: {name}', 'Erfolg freigeschaltet: {name}', 'Succès débloqué : {name}', 'Conquista desbloqueada: {name}', 'Obiettivo sbloccato: {name}'],
     ['Win your first round', 'Gana tu primera ronda', 'Gewinne deine erste Runde', 'Gagnez votre première manche', 'Vença sua primeira rodada', 'Vinci la tua prima partita'],
@@ -147,6 +130,9 @@
     ['You win.', 'Ganaste.', 'Du gewinnst.', 'Vous gagnez.', 'Você venceu.', 'Hai vinto.'],
     ['{name} wins.', '{name} gana.', '{name} gewinnt.', '{name} gagne.', '{name} vence.', '{name} vince.'],
     ['Score {n} points.', 'Puntuación: {n} puntos.', '{n} Punkte.', 'Score : {n} points.', 'Pontuação: {n} pontos.', 'Punteggio: {n} punti.'],
+    // ---- settings: the runtime's Options
+    ['Open Options', 'Abrir opciones', 'Optionen öffnen', 'Ouvrir les options', 'Abrir opções', 'Apri le opzioni'],
+    ['Sound volumes, graphics quality, the language, controls, reduced motion, high contrast and text size are in the StarHermit Options (F1).', 'El volumen del sonido, la calidad gráfica, el idioma, los controles, el movimiento reducido, el alto contraste y el tamaño del texto están en las opciones de StarHermit (F1).', 'Lautstärke, Grafikqualität, Sprache, Steuerung, reduzierte Bewegung, hoher Kontrast und Textgröße findest du in den StarHermit-Optionen (F1).', 'Les volumes sonores, la qualité graphique, la langue, les commandes, le mouvement réduit, le contraste élevé et la taille du texte se trouvent dans les options StarHermit (F1).', 'Os volumes de som, a qualidade gráfica, o idioma, os controles, o movimento reduzido, o alto contraste e o tamanho do texto ficam nas opções da StarHermit (F1).', 'Volumi audio, qualità grafica, lingua, comandi, movimento ridotto, contrasto elevato e dimensione del testo si trovano nelle opzioni di StarHermit (F1).'],
     // ---- cards
     ['Ember', 'Brasa', 'Glut', 'Braise', 'Brasa', 'Brace'],
     ['Tide', 'Marea', 'Flut', 'Marée', 'Maré', 'Marea'],
