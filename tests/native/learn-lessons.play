@@ -1,0 +1,56 @@
+# Learn: the first six lessons by their required actions — an Ember card on
+# the Ember discard, the matching rank, a draw (D) when nothing matches, the
+# Skip, the Draw Two, then a Wild and its colour (the mandatory chooser) —
+# each to its "Lesson complete" dialog and on to the next lesson.
+until 300 Color Eights
+frames 20
+click Learn
+until 60 Interactive lessons
+frames 10
+save learn
+click Match a Color
+until 200 Your turn
+frames 30
+save lesson1
+click =Ember 4
+until 120 Lesson complete
+frames 10
+save lesson1-done
+click Next lesson
+until 200 Colors do not match here
+frames 20
+click =Tide 4
+until 120 Lesson complete
+frames 10
+click Next lesson
+until 200 Nothing matches
+frames 20
+key KeyD 2
+until 120 Lesson complete
+frames 10
+click Next lesson
+until 200 Skip jumps over
+frames 20
+click =Ember Skip
+until 120 Lesson complete
+frames 10
+click Next lesson
+until 200 Draw Two makes
+frames 20
+click =Sol Draw Two
+until 120 Lesson complete
+frames 10
+click Next lesson
+until 200 Wild cards play on anything
+frames 20
+click =Wild
+until 120 Choose a color
+frames 10
+save chooser
+click =Tide
+until 120 Lesson complete
+frames 10
+click Back to lessons
+until 60 Interactive lessons
+frames 10
+save learn-done

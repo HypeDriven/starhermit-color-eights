@@ -39,7 +39,8 @@
 .btn-mastery { border: 1px solid #ffcf4d88; }
 .btn-small { font-size: 15px; padding: 8px 14px; }
 
-/* ------------------------------------------------------------- text */
+/* ------------------------------------------------------------- text
+   (the table's status text stays legible over the opponents' fans) */
 .h1 { font-size: 40px; font-weight: 700; color: var(--text); letter-spacing: 0.4px; }
 .h1-small { font-size: 28px; font-weight: 700; color: var(--text); }
 .h2 { font-size: 28px; font-weight: 700; color: var(--text); }
@@ -48,11 +49,11 @@
 .tagline { color: var(--muted); font-size: 17px; }
 .body { color: var(--soft); font-size: 17px; }
 .field-label { color: var(--text); font-size: 17px; }
-.turn-label { color: #ffd9c8; font-size: 19px; font-weight: 600; }
-.turn-label-small { color: #ffd9c8; font-size: 16px; font-weight: 600; }
-.chip-text { color: var(--text); font-size: 17px; }
-.draw-count { color: #dcd3ca; font-size: 16px; }
-.lesson-banner { color: #ffe9c9; font-size: 17px; }
+.turn-label { color: #ffd9c8; font-size: 19px; font-weight: 600; text-shadow: 0 1px 3px #000000, 0 0 10px #000000cc; }
+.turn-label-small { color: #ffd9c8; font-size: 16px; font-weight: 600; text-shadow: 0 1px 3px #000000, 0 0 10px #000000cc; }
+.chip-text { color: var(--text); font-size: 17px; text-shadow: 0 1px 3px #000000, 0 0 10px #000000cc; }
+.draw-count { color: #dcd3ca; font-size: 16px; text-shadow: 0 1px 3px #000000, 0 0 10px #000000cc; }
+.lesson-banner { color: #ffe9c9; font-size: 17px; text-shadow: 0 1px 3px #000000, 0 0 10px #000000cc; }
 .goal-line { color: #ffcf4d; font-weight: 600; font-size: 17px; }
 .breakdown { color: var(--soft); font-size: 15px; }
 .challenge-desc { color: #cfc4b8; font-size: 15px; }

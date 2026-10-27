@@ -151,32 +151,87 @@
       "text": {
         "color": "#ffd9c8",
         "size": 19,
-        "weight": "600"
+        "weight": "600",
+        "shadow": [
+          {
+            "y": 1,
+            "blur": 3,
+            "color": "#000000"
+          },
+          {
+            "blur": 10,
+            "color": "#000000cc"
+          }
+        ]
       }
     },
     ".turn-label-small": {
       "text": {
         "color": "#ffd9c8",
         "size": 16,
-        "weight": "600"
+        "weight": "600",
+        "shadow": [
+          {
+            "y": 1,
+            "blur": 3,
+            "color": "#000000"
+          },
+          {
+            "blur": 10,
+            "color": "#000000cc"
+          }
+        ]
       }
     },
     ".chip-text": {
       "text": {
         "color": "$text",
-        "size": 17
+        "size": 17,
+        "shadow": [
+          {
+            "y": 1,
+            "blur": 3,
+            "color": "#000000"
+          },
+          {
+            "blur": 10,
+            "color": "#000000cc"
+          }
+        ]
       }
     },
     ".draw-count": {
       "text": {
         "color": "#dcd3ca",
-        "size": 16
+        "size": 16,
+        "shadow": [
+          {
+            "y": 1,
+            "blur": 3,
+            "color": "#000000"
+          },
+          {
+            "blur": 10,
+            "color": "#000000cc"
+          }
+        ]
       }
     },
     ".lesson-banner": {
       "text": {
         "color": "#ffe9c9",
-        "size": 17
+        "size": 17,
+        "shadow": [
+          {
+            "y": 1,
+            "blur": 3,
+            "color": "#000000"
+          },
+          {
+            "blur": 10,
+            "color": "#000000cc"
+          }
+        ]
       }
     },
     ".goal-line": {

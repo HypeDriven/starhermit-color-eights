@@ -1,0 +1,92 @@
+# The title's screens and the table's controls: Journey and a stage intro
+# (Cancel), Challenges, Daily Challenge (Pause, Quit without saving),
+# Settings (the colour palette), then a Practice round of three: Hint, a
+# card, Undo, Pause and its Settings, Save & quit, Resume round from the
+# title, and Restart round.
+until 300 Color Eights
+frames 20
+save title
+click Journey
+until 60 Forty stages
+frames 10
+save journey
+click Mastery: Tempo
+until 60 Goal:
+frames 10
+save stage-intro
+click =Cancel
+frames 10
+key Escape 2
+until 60 Daily Challenge
+frames 10
+click Challenges
+until 60 Twenty Turns
+frames 10
+save challenges
+key Escape 2
+until 60 Daily Challenge
+frames 10
+click Daily Challenge
+until 200 Daily
+frames 30
+save daily
+key KeyP 2
+until 60 Paused
+frames 10
+click Quit without saving
+until 200 Practice
+frames 10
+# Settings is below the fold at 960 × 540: Tab from the focused Practice button.
+key Tab 2
+frames 3
+key Tab 2
+frames 3
+key Tab 2
+frames 3
+key Tab 2
+frames 3
+key Tab 2
+frames 3
+key Enter 2
+until 60 Color palette
+frames 10
+save settings
+key Escape 2
+frames 10
+click Practice
+until 60 Start round
+frames 10
+save setup
+click Start round
+until 300 Your turn
+frames 30
+key KeyH 2
+frames 10
+save hint
+click Hint
+frames 10
+key KeyD 2
+frames 10
+until 60 Undo
+frames 5
+key KeyU 2
+until 300 Your turn
+frames 10
+save undone
+key Escape 2
+until 60 Paused
+frames 10
+save pause
+click Save & quit to menu
+until 60 Resume round
+frames 10
+click Resume round
+until 300 Draw (
+frames 30
+save resumed
+key KeyP 2
+until 60 Paused
+frames 10
+click Restart round
+until 300 Your turn
+frames 20
