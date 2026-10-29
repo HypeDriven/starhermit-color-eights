@@ -438,7 +438,8 @@ export function applyLook(next: Look): void {
     denoise: { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: next.ao === "high" ? 6 : 4, rings: 2, samples: next.ao === "high" ? 16 : 8, radiusExponent: 2 },
   };
   // Bloom limited to the glow ring, the far lamps and the brightest highlights.
-  renderer.bloom = next.bloom ? { strength: 0.5, radius: 0.45, threshold: 0.92, resolution: next.budget.bloomRes } : null;
+  // The page's three r160 UnrealBloomPass strength squared: minor 29 bloom follows r185 (≈2.9× the light).
+  renderer.bloom = next.bloom ? { strength: 0.25, radius: 0.45, threshold: 0.92, resolution: next.budget.bloomRes } : null;
   // The browser build's grade pass: a gentle S-curve, +10 % saturation, warm highlights / cool shadows, the 0.3 vignette.
   renderer.grade = next.grade ? {
     space: "display", contrast: 0.12, saturation: 1.1,
