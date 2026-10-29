@@ -31,8 +31,8 @@ const TY = -1.15;            // table-top height
 const FELT_R = 3.85, RIM_R = 4.05;
 const POOL = 72;
 const PI = Math.PI;
-/** three.js's physically based intensities in the engine's units (÷ π). */
-const KEY_INTENSITY = 85 / PI;
+/** The page's three.js r160 lamp intensity (engine minor 28 lights as three r155+). */
+const KEY_INTENSITY = 85;
 
 const camera = new PerspectiveCamera(45, 16 / 9, 0.1, 100);
 renderer.toneMapping = ACESFilmicToneMapping;
@@ -223,21 +223,23 @@ function lit(p: LitParams, physical = false): Material {
 }
 let edgeMat: Material | null = null;
 const matCache = new Map<string, Material>();
+/** The room environment while reflections are on (each standard material's own envMap). */
+function sceneEnv(): Texture | null { return look?.reflections ? envTex : null; }
 function faceMaterial(card: Card | null, hex: string): Material {
   const detailed = !!look?.detailed;
   const key = detailed ? `d|${card ? `${card.kind}|${card.rank}|${card.color}` : "back"}|${hex}` : `p|${hex}`;
   const hit = matCache.get(key);
   if (hit) return hit;
   const m = detailed
-    ? lit({ map: card ? faceTexture(card, hex) : backTexture(), roughness: 0.42, metalness: 0, clearcoat: 0.7, clearcoatRoughness: 0.12 }, true)
+    ? lit({ map: card ? faceTexture(card, hex) : backTexture(), roughness: 0.42, metalness: 0, clearcoat: look?.reflections ? 0.7 : 0, clearcoatRoughness: 0.12 }, true)
     : lit({ color: hex, roughness: 0.5 });
-  if ("envMapIntensity" in m) (m as MeshStandardMaterial).envMapIntensity = look?.reflections ? 0.35 : 0;
+  if (m instanceof MeshStandardMaterial) { m.envMapIntensity = look?.reflections ? 0.35 : 0; m.envMap = sceneEnv(); }
   matCache.set(key, m);
   return m;
 }
 
 // ---------------------------------------------------------------- the scene
-const hemi = new HemisphereLight(0x7040a0, 0x1a0c0e, 0.4 / PI);
+const hemi = new HemisphereLight(0x7040a0, 0x1a0c0e, 0.4);
 // Pendant-lamp key light: a soft spot pool over the table; its shadow is fitted to the felt.
 const keyLight = new SpotLight(0xffb28a, KEY_INTENSITY, 0, 0.53, 0.45, 2);
 keyLight.position.set(0, TY + 7.5, 0.4);
@@ -246,7 +248,7 @@ keyLight.shadow.bias = -0.0004;
 keyLight.shadow.normalBias = 0.02;
 keyLight.shadow.camera.near = 4;
 keyLight.shadow.camera.far = 11;
-const rimLight = new DirectionalLight(0xfff2e0, 0.5 / PI);
+const rimLight = new DirectionalLight(0xfff2e0, 0.5);
 rimLight.position.set(-6, 8, -3);
 scene.add(hemi, keyLight, keyLight.target, rimLight);
 scene.background = new Color("#160a0c");
@@ -384,14 +386,22 @@ function build(): void {
       try { envTex = new PMREMGenerator(renderer).fromScene(new RoomEnvironment(renderer), 0.04).texture; }
       catch (e) { console.warn("environment:", e instanceof Error ? e.message : String(e)); }
     }
-    scene.environment = envTex;
-  } else scene.environment = null;
+  }
   // The studio environment is far brighter than a dim lounge: each surface's fill stays subtle,
   // adding sheen and highlights without greying the room (the browser build's envMapIntensity).
-  const env = (m: Material, k: number): void => { if ("envMapIntensity" in m) (m as MeshStandardMaterial).envMapIntensity = k; };
+  // three.js r160 scaled scene.environment by each material's envMapIntensity; from engine minor
+  // 20 the scene's environment ignores it, so every standard material takes the room as its own envMap.
+  scene.environment = null;
+  const env = (m: Material, k: number): void => { if (m instanceof MeshStandardMaterial) m.envMapIntensity = k; };
   env(rimMat, 0.3); env(feltMat, 0.06); env(tableMat, 0.12); env(floorMat, 0.02); env(edgeMat, 0.15);
+  const e = sceneEnv();
+  scene.traverse((o) => {
+    const m = (o as { material?: Material | Material[] }).material;
+    if (m) for (const mat of Array.isArray(m) ? m : [m]) if (mat instanceof MeshStandardMaterial) mat.envMap = e;
+  });
+  for (const m of matCache.values()) if (m instanceof MeshStandardMaterial) m.envMap = e;
   // Without image-based fill the hemisphere carries more of the ambient light.
-  hemi.intensity = (scene.environment ? 0.4 : 0.9) / PI;
+  hemi.intensity = e ? 0.4 : 0.9;
   for (const b of bokeh) b.mesh.visible = detailed;
   buildMotes(look.budget.motes);
   applyThemeColors();
