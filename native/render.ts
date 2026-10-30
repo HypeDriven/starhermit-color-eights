@@ -439,10 +439,11 @@ export function applyLook(next: Look): void {
   };
   // Bloom limited to the glow ring, the far lamps and the brightest highlights.
   // The page's three r160 UnrealBloomPass strength squared: minor 29 bloom follows r185 (≈2.9× the light).
-  renderer.bloom = next.bloom ? { strength: 0.25, radius: 0.45, threshold: 0.92, resolution: next.budget.bloomRes } : null;
-  // The browser build's grade pass: a gentle S-curve, +10 % saturation, warm highlights / cool shadows, the 0.3 vignette.
+  // r160 page: its UnrealBloomPass(0.5, 0.45, 0.92) exactly (model "r160", strength as written).
+  renderer.bloom = next.bloom ? { model: "r160", strength: 0.5, radius: 0.45, threshold: 0.92, resolution: next.budget.bloomRes } : null;
+  // The browser build's grade pass after OutputPass: a 0.22 smoothstep S-curve (contrastCurve "s"), +10 % saturation, warm highlights / cool shadows, the 0.3 vignette.
   renderer.grade = next.grade ? {
-    space: "display", contrast: 0.12, saturation: 1.1,
+    space: "display", contrastCurve: "s", contrast: 0.22, saturation: 1.1,
     shadows: [0.95, 0.97, 1.05], highlights: [1.05, 1.0, 0.94], split: [0.15, 0.8],
     vignette: { amount: 0.3, inner: 0.32, outer: 0.85 },
   } : null;
