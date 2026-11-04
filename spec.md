@@ -18,6 +18,8 @@
 | `native/render.ts` | The lounge on `starhermit:scene`: table, lights, card pool mirroring the state, glow, far lamps, motes, the look per level. |
 | `native/glyphs.ts` | The suit and kind symbols (◆ ≈ ♣ ☀ ★ ⊘ ⇄) as drawn shapes, for the overlay and the card-face canvases. |
 | `native/quality.ts` | The look per graphics level: engine effects from `levelSettings()`, the browser build's art and budgets by quality tier. |
+
+Low (quantum) keeps MSAA instead of the level's "off" until engine 1.36.2: engine 1.36.1 recolours fog, haze and translucent overlays without anti-aliasing.
 | `native/style.ts` | Registers `assets/ui-style.json` (theme, tokens, styles); Surface detail's panels per level. |
 | `native/audio.ts` | One-shots from `sfx/manifest.json` on the runtime's buses, the C4 + E4 pad rendered into a seamless loop. |
 | `native/platform.ts` | The save (`saves`), the game's options (`settings`), the browser build's foreign cloud save and legacy settings migration, the player, invite link, score posting through `score-script.js`, the platform clock. |
