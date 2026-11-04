@@ -1,0 +1,26 @@
+# Graphics-tier bench (tools/engine-tier-bench.mjs): Journey stage 1 (First
+# Dealing, a fixed deal; the same moves as journey-match.play), settled at the
+# first turn, then two of the player's turns and the opponent's replies measured.
+until 300 Color Eights
+frames 20
+click Journey
+until 60 Forty stages
+frames 10
+click 1. First Dealing
+until 60 Goal: win the round.
+frames 10
+click =Play
+until 200 Your turn
+frames 120
+measure start
+click =Leaf 3
+frames 6
+until 600 Your turn
+frames 10
+click =Ember 4
+frames 6
+until 600 Your turn
+frames 10
+click =Sol 4
+frames 300
+measure stop

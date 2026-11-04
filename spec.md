@@ -17,7 +17,7 @@
 | `native/screens.ts` | Every screen, the table HUD, the dialogs and the toast in `starhermit:ui`; the hand-drawn cards, piles, colour chip and chooser. |
 | `native/render.ts` | The lounge on `starhermit:scene`: table, lights, card pool mirroring the state, glow, far lamps, motes, the look per level. |
 | `native/glyphs.ts` | The suit and kind symbols (◆ ≈ ♣ ☀ ★ ⊘ ⇄) as drawn shapes, for the overlay and the card-face canvases. |
-| `native/quality.ts` | The browser build's four presets and budgets keyed by the runtime's quality tier and level index. |
+| `native/quality.ts` | The look per graphics level: engine effects from `levelSettings()`, the browser build's art and budgets by quality tier. |
 | `native/style.ts` | Registers `assets/ui-style.json` (theme, tokens, styles); Surface detail's panels per level. |
 | `native/audio.ts` | One-shots from `sfx/manifest.json` on the runtime's buses, the C4 + E4 pad rendered into a seamless loop. |
 | `native/platform.ts` | The save (`saves`), the game's options (`settings`), the browser build's foreign cloud save and legacy settings migration, the player, invite link, score posting through `score-script.js`, the platform clock. |
@@ -166,20 +166,20 @@ Screens are built every frame (`native/screens.ts`) over the lounge, which shows
 
 **Graphics.** ACES filmic tone mapping at exposure 1.05. Lighting is a hemisphere fill (theme fill over floor color; brighter without reflections), a pendant-lamp spotlight (three.js intensities ÷ π) fitted to the felt that casts the shadows, and a dim rim light. The table mirrors the state: the last four discards scattered at the center (top card straight), a draw-pile stack whose height follows the pile, a face-down fan per opponent (up to 14 cards, seated far / left-right / left-far-right for 1–3 opponents), and an additive ring of the current color around the discard (the theme's accent on the title, where the four eights lie fanned beside a pile). Camera: 45° at (0, 7.4, 7.6) looking at (0, −1.4, 0.35), (0, 10.5, 11.5) below 720 logical px wide.
 
-The runtime's Options choose the graphics level (Auto by the device, or a level); `native/quality.ts` maps its quality tier to the browser build's preset and budget, and the runtime owns render scale, the pixel-ratio cap, adaptive resolution, the frame-rate limit and readout, the shadow-map ceiling and MSAA samples:
+The runtime's Options choose the graphics level (Auto by the device, or a level); the engine-owned effects (shadows and their map size, AO resolution and samples, bloom resolution, the grade, anti-aliasing) are the level's own (`levelSettings()`), `native/quality.ts` keys the game's art below by the level's quality tier, and the runtime owns render scale, the pixel-ratio cap, adaptive resolution, the frame-rate limit and readout. Engine values are shown at each tier's anchor level (quantum, molecular, terrestrial, galactic):
 
 | Look | Low | Balanced | High | Ultra |
 |---|---|---|---|---|
 | Materials (table, felt, rim, floor, cards) | Lambert | Standard | Physical (clearcoat cards and rim) | Physical |
-| Shadows (spot map) | off | 512 | 1024 | 2048 |
-| AO (`renderer.ao`) | off | off | on (8 samples) | high (16) |
-| Bloom (threshold 0.92) / grade + vignette | off | on | on | on |
-| Antialiasing | MSAA | FXAA | SMAA | MSAA |
+| Shadows (spot map) | off | 1024 | 2048 | 4096 |
+| AO (`renderer.ao`) | off | off | ½-res, 8 samples | full, 16 samples |
+| Bloom (threshold 0.92) / grade + vignette | off | ½-res / on | ½-res / on | full / on |
+| Antialiasing | none | FXAA | SMAA | MSAA 4 |
 | Reflections (PMREM `RoomEnvironment`, per-surface intensity 0.02–0.35) | off | on | on | on |
 | Surface detail (felt fibres + printed ring, wood grain, rounded textured cards with corner marks, lattice back, far lamps, detailed 2D cards) | plain | detailed | detailed | detailed |
 | Card face / felt texture | 128 / 256 | 128 / 256 | 256 / 512 | 384 / 1024 |
 | Round-geometry segments | ×0.5 | ×0.75 | ×1 | ×1.5 |
-| Dust motes (grow with the level within the tier, ≤ 4×) | 0 | 40 (≤ 60) | 120 | 180 (≤ 600) |
+| Dust motes (grow with the level's particle budget over the anchor's, ≤ 4×) | 0 | 40 (≤ 60) | 120 | 180 (≤ 600) |
 | Ambient motion | static | animated | animated | animated |
 
 **Visual assets.** Title key art, a win and a loss illustration for results, and a store cover derived from the key art (§15).

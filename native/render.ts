@@ -379,7 +379,7 @@ function build(): void {
   const shadows = look.shadows > 0;
   renderer.shadowMap.enabled = shadows;
   keyLight.castShadow = shadows;
-  if (shadows) keyLight.shadow.mapSize = look.shadows;
+  if (shadows) keyLight.shadow.mapSize = look.shadows; // the level's size: from minor 23 the runtime keeps a light's mapSize
   // Image-based lighting for glossy cards and the lacquered rim, kept dim so the room stays dark.
   if (look.reflections) {
     if (!envTex) {
@@ -435,14 +435,16 @@ export function setTheme(t: Theme): void {
 export function applyLook(next: Look): void {
   if (look && JSON.stringify(look) === JSON.stringify(next)) return;
   look = next;
-  renderer.ao = next.ao === "off" ? null : {
-    blendIntensity: 0.75, radius: 0.5, distanceExponent: 1.5, thickness: 1.0, scale: 1.0, samples: next.ao === "high" ? 16 : 8, resolution: next.budget.aoRes,
-    denoise: { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: next.ao === "high" ? 6 : 4, rings: 2, samples: next.ao === "high" ? 16 : 8, radiusExponent: 2 },
+  // The level's AO (engine AoQuality: resolution < 1 is "on", 1 is "high"); the radius and phis are the game's.
+  const ao = next.ao, full = !!ao && ao.resolution >= 1;
+  renderer.ao = ao && {
+    blendIntensity: 0.75, radius: 0.5, distanceExponent: 1.5, thickness: 1.0, scale: 1.0, samples: ao.samples, resolution: ao.resolution,
+    denoise: { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: full ? 6 : 4, rings: 2, samples: ao.denoiseSamples, radiusExponent: 2 },
   };
   // Bloom limited to the glow ring, the far lamps and the brightest highlights.
   // The page's three r160 UnrealBloomPass strength squared: minor 29 bloom follows r185 (≈2.9× the light).
   // r160 page: its UnrealBloomPass(0.5, 0.45, 0.92) exactly (model "r160", strength as written).
-  renderer.bloom = next.bloom ? { model: "r160", strength: 0.5, radius: 0.45, threshold: 0.92, resolution: next.budget.bloomRes } : null;
+  renderer.bloom = next.bloom === null ? null : { model: "r160", strength: 0.5, radius: 0.45, threshold: 0.92, resolution: next.bloom };
   // The browser build's grade pass after OutputPass: a 0.22 smoothstep S-curve (contrastCurve "s"), +10 % saturation, warm highlights / cool shadows, the 0.3 vignette.
   renderer.grade = next.grade ? {
     space: "display", contrastCurve: "s", contrast: 0.22, saturation: 1.1,
@@ -498,7 +500,7 @@ function drawPile(n: number): void {
 }
 function setGlow(hex: string): void {
   glowHex = hex;
-  glowMat.color.set(hex).multiplyScalar(look?.bloom ? 1.3 : 0.9);
+  glowMat.color.set(hex).multiplyScalar(look && look.bloom !== null ? 1.3 : 0.9);
 }
 
 let lastState: State | null | undefined = undefined;
@@ -545,7 +547,7 @@ function decorativeSpread(): void {
   });
   drawPile(40);
   glowHex = theme?.accent ?? "#ff7a4d";
-  glowMat.color.set(glowHex).multiplyScalar(look?.bloom ? 1.4 : 0.9);
+  glowMat.color.set(glowHex).multiplyScalar(look && look.bloom !== null ? 1.4 : 0.9);
 }
 
 // ---------------------------------------------------------------- camera and frame
