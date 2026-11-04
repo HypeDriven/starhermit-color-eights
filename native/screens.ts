@@ -493,24 +493,19 @@ function gameScreen(L: Layout): void {
       const me = st.players[0]!;
       const gap = 6.4;
       const maxW = L.lw - 16;
-      const perRow = Math.max(1, Math.floor((maxW + gap) / (cardW + gap)));
       const hinted = app.hint?.cardId ?? null;
-      add(ui.column("hand", () => {
-        for (let i = 0; i < me.hand.length; i += perRow) {
-          ui.row(`hand-r${i}`, () => {
-            for (const card of me.hand.slice(i, i + perRow)) {
-              const ok = playable.has(card.id);
-              const why = ok ? null : R.explainInvalid(st, s.humanId, card.id);
-              const res = ui.id(`card-${card.id}`).widget(cardLabel(card), {
-                role: "button", size: { width: cardW, height: cardH + 6 }, disabled: !ok || !live,
-                ...(why ? { description: tr("not playable: {reason}", { reason: reasonText(why) }) } : {}),
-                draw: (rr, ws) => drawCardButton(rr, card, { playable: ok, disabled: !ok, hinted: hinted === card.id, size: cardFont }, ws.scale),
-              });
-              if (res.activated) playCard(card.id);
-            }
-          }, { spacing: gap, align: "end" });
+      add(ui.row("hand", () => {
+        for (const card of me.hand) {
+          const ok = playable.has(card.id);
+          const why = ok ? null : R.explainInvalid(st, s.humanId, card.id);
+          const res = ui.id(`card-${card.id}`).widget(cardLabel(card), {
+            role: "button", size: { width: cardW, height: cardH + 6 }, disabled: !ok || !live,
+            ...(why ? { description: tr("not playable: {reason}", { reason: reasonText(why) }) } : {}),
+            draw: (rr, ws) => drawCardButton(rr, card, { playable: ok, disabled: !ok, hinted: hinted === card.id, size: cardFont }, ws.scale),
+          });
+          if (res.activated) playCard(card.id);
         }
-      }, { align: "center", spacing: gap, width: L.lw }));
+      }, { wrap: true, width: maxW, gap, justify: "center", align: "end" }));
 
       // the action row
       const acts: { id: string; text: string; act: () => void }[] = [];
@@ -654,25 +649,23 @@ function colorDialog(L: Layout): void {
       // .ce-color-row: 110 × 56 buttons, wrapping
       const gap = 10, bw = 110;
       const per = Math.max(1, Math.min(4, Math.floor((w + gap) / (bw + gap))));
-      for (let i = 0; i < R.COLORS.length; i += per) {
-        ui.row(`color-r${i}`, () => {
-          for (const c of R.COLORS.slice(i, i + per) as ColorId[]) {
-            const label = colorLabel(c);
-            const res = ui.id(`color-${c}`).widget(label, {
-              role: "button", size: { width: bw, height: 56 },
-              draw: (rr, ws) => {
-                const sc = ws.scale, rad = 11 * sc;
-                if (isDetailed()) draw.roundRect(rr.x, rr.y + 4 * sc, rr.width, rr.height, rad, "#00000099");
-                draw.roundRect(rr.x, rr.y, rr.width, rr.height, rad, paletteHex(c));
-                if (ws.hovered) draw.roundRect(rr.x, rr.y, rr.width, rr.height, rad, "#ffffff22");
-                if (isDetailed()) sheen(rr.x, rr.y, rr.width, rr.height, rad, sc, 1);
-                cardText(rr.x + 4 * sc, rr.y, rr.width - 8 * sc, rr.height, glyphOf({ color: c }), label, 16 * sc, 1, true);
-              },
-            });
-            if (res.activated) chooseColor(c);
-          }
-        }, { spacing: gap, align: "center" });
+      ui.row("color-row", () => {
+      for (const c of R.COLORS as ColorId[]) {
+        const label = colorLabel(c);
+        const res = ui.id(`color-${c}`).widget(label, {
+          role: "button", size: { width: bw, height: 56 },
+          draw: (rr, ws) => {
+            const sc = ws.scale, rad = 11 * sc;
+            if (isDetailed()) draw.roundRect(rr.x, rr.y + 4 * sc, rr.width, rr.height, rad, "#00000099");
+            draw.roundRect(rr.x, rr.y, rr.width, rr.height, rad, paletteHex(c));
+            if (ws.hovered) draw.roundRect(rr.x, rr.y, rr.width, rr.height, rad, "#ffffff22");
+            if (isDetailed()) sheen(rr.x, rr.y, rr.width, rr.height, rad, sc, 1);
+            cardText(rr.x + 4 * sc, rr.y, rr.width - 8 * sc, rr.height, glyphOf({ color: c }), label, 16 * sc, 1, true);
+          },
+        });
+        if (res.activated) chooseColor(c);
       }
+      }, { wrap: true, width: per * bw + (per - 1) * gap, gap, justify: "center", align: "center" });
     }, { spacing: 12, width: w, align: "center" });
   });
 }
