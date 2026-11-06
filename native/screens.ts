@@ -20,7 +20,7 @@ import * as ui from "starhermit:ui";
 import { TextureLoader, type Texture } from "starhermit:scene";
 import { Content as C, Rules as R, type Card, type ColorId, type Stage } from "./classic.ts";
 import { SUIT, drawGlyph, type GlyphName } from "./glyphs.ts";
-import { tr, N, pt } from "./i18n.ts";
+import { tr, N } from "./i18n.ts";
 import * as platform from "./platform.ts";
 import {
   app, cardHex, cardLabel, challengesScreen, chooseColor, clearOverlay, closeOverlay, colorChoicePending, colorLabel, copyInvite, doUndo, drawCard,
@@ -34,10 +34,8 @@ import { sfx } from "./audio.ts";
 // ------------------------------------------------------------------ layout
 interface Layout { lw: number; lh: number; sc: number; narrow: boolean; short: boolean; veryShort: boolean }
 function layoutNow(): Layout {
-  const f = frame();
-  const sc = ui.preferences().scale;
-  const sa = f.safeArea;
-  const lw = Math.max(1, (f.width - sa.left - sa.right) / sc), lh = Math.max(1, (f.height - sa.top - sa.bottom) / sc);
+  const v = ui.viewport!();
+  const sc = v.scale, lw = Math.max(1, v.width), lh = Math.max(1, v.height);
   return { lw, lh, sc, narrow: lw < 720, short: lh <= 560, veryShort: lh <= 480 };
 }
 const clamp = (min: number, v: number, max: number): number => Math.max(min, Math.min(max, v));
@@ -144,7 +142,6 @@ export function drawScreens(): void {
     case "results": resultsScreen(L); break;
   }
   overlays(L);
-  toast(L);
   if (app.focusNext) {
     const age = f.frame - Math.max(app.openedFrame, app.overlay ? app.overlayOpenedFrame : 0);
     if (age >= 1) ui.setFocus(app.focusNext);
@@ -184,7 +181,7 @@ function titleScreen_(L: Layout): void {
     heading(L.lw < 520 ? "h1-small" : "h1", "Color Eights", w, "title-heading");
     para(tr("Match the discard by color or rank. Empty your hand first."), w, "tagline", "tagline", true);
     para(accountLine(), w, "tagline", "account-line", true);
-    if (app.signedOut) para(pt("signedOut"), w, "tagline", "signed-out", true);
+    if (app.signedOut) para(tr("starhermit.signedOut"), w, "tagline", "signed-out", true);
     const buttons: Btn[] = [];
     if (resumeSnapshot()) buttons.push({ id: "btn-resume-round", text: tr("Resume round"), style: PRIMARY(), act: resumeRound });
     buttons.push(
@@ -195,8 +192,8 @@ function titleScreen_(L: Layout): void {
       { id: "btn-learn", text: tr("Learn"), act: learnScreen },
       { id: "btn-settings", text: tr("Settings"), act: openSettings },
     );
-    if (platform.inviteLink()) buttons.push({ id: "btn-invite", text: pt("invite"), act: () => void copyInvite() });
-    if (!platform.signedIn()) buttons.push({ id: "btn-signin", text: pt("signIn"), style: PRIMARY(), act: signIn });
+    if (platform.inviteLink()) buttons.push({ id: "btn-invite", text: tr("starhermit.invite"), act: () => void copyInvite() });
+    if (!platform.signedIn()) buttons.push({ id: "btn-signin", text: tr("starhermit.signIn"), style: PRIMARY(), act: signIn });
     for (const b of buttons) button(b, w);
   });
 }
@@ -547,7 +544,7 @@ function resultsScreen(L: Layout): void {
         para(`${who} — ${hand}, ${tr("{n} points", { n: b.handValue })}${detail}`, w, "breakdown", `breakdown-${i}`);
       }
     }, { spacing: 5, width: w });
-    if (app.lb) para(app.lb.state === "lbRank" ? pt("lbRank", { rank: app.lb.rank ?? "" }) : pt(app.lb.state), w, "goal-line", "results-lb", true);
+    if (app.lb) para(tr(`starhermit.${app.lb.state}`, app.lb.state === "leaderboardRank" ? { rank: app.lb.rank ?? "" } : null), w, "goal-line", "results-lb", true);
     button({ id: "btn-play-again", text: tr("Play again"), style: PRIMARY(), act: restartRound }, w);
     if (mode === "journey" && modeCtx?.stage && C.JOURNEY[modeCtx.stage.index]) button({ id: "btn-next-stage", text: tr("Next stage"), act: nextStage }, w);
     if (mode === "learn" && modeCtx?.lesson && C.LESSONS[C.LESSONS.indexOf(modeCtx.lesson) + 1]) button({ id: "btn-next-lesson", text: tr("Next lesson"), act: nextLesson }, w);
@@ -668,16 +665,4 @@ function colorDialog(L: Layout): void {
       }, { wrap: true, width: per * bw + (per - 1) * gap, gap, justify: "center", align: "center" });
     }, { spacing: 12, width: w, align: "center" });
   });
-}
-
-// ------------------------------------------------------------------ toast
-function toast(L: Layout): void {
-  if (!app.toast) return;
-  const text = app.toast.text();
-  const w = Math.min(L.lw * 0.92, 520);
-  ui.place("toast", { anchor: "bottom", y: 20 }, () => {
-    const fits = textWidth(text, "toast") + 40 <= w;
-    if (fits) ui.style("toast").id("toast").label(text);
-    else ui.style("toast").id("toast").paragraph(text, w - 34);
-  }, { width: w, align: "center" });
 }

@@ -7,12 +7,12 @@
 // "effects", the button tick → "interface"; its default levels (master 0.9,
 // music 0.6, effects 0.8) are folded into each sound's gain. The pad, which
 // the browser build played with two live oscillators, is rendered once into
-// a seamless loop (createClip); the synthesized blips it played while a
+// a seamless loop (OfflineAudioContext); the synthesized blips it played while a
 // sample loaded are not ported (the engine's web runtime drops clip loads
 // while a synthesis graph changes: the arrow-exodus finding). Every clip
 // loads at once in onStart (each reaches the mixer when it is ready); the
 // pad starts once the mixer runs (in a browser after the first press).
-import { context, createClip, loadClip, play as playClip, type AudioClip, type Bus, type Sound } from "starhermit:audio";
+import { context, createClip, loadClip, OfflineAudioContext, play as playClip, SoundBank, type AudioClip, type Sound } from "starhermit:audio";
 import { files } from "starhermit:engine";
 
 const MASTER = 0.9;
@@ -30,24 +30,31 @@ try {
   }
 } catch (e) { console.warn(`sfx manifest: ${String(e)}`); }
 
-const clips = new Map<string, AudioClip>();
-/** Loads every clip at once (onStart); an event whose clips are still loading is silent. */
+const banks = new Map<string, SoundBank>();
+/** Loads every clip at once (onStart) and renders the pad; an event whose clips are still loading is silent. */
 export function loadSfx(): void {
-  for (const name of new Set([...byEvent.values()].flat())) {
-    loadClip(`sfx/${name}.opus`).then((c) => { clips.set(name, c); }, (e: unknown) => console.warn(`sfx ${name}: ${String(e)}`));
+  const loads = new Map<string, Promise<AudioClip | null>>();
+  const load = (name: string): Promise<AudioClip | null> => {
+    let p = loads.get(name);
+    if (!p) {
+      p = loadClip(`sfx/${name}.opus`).catch((e: unknown) => { console.warn(`sfx ${name}: ${String(e)}`); return null; });
+      loads.set(name, p);
+    }
+    return p;
+  };
+  for (const [event, names] of byEvent) {
+    void Promise.all(names.map(load)).then((loaded) => {
+      const list = loaded.filter((c) => c !== null);
+      // In turn, as the browser build's sampleRotate.
+      if (list.length) banks.set(event, new SoundBank({ clips: list, order: "sequence", bus: event === "select" ? "interface" : "effects", gain: LEVEL.effects }));
+    });
   }
+  renderPad().then((c) => { pad = c; }, (e: unknown) => console.warn(`audio: ${String(e)}`));
 }
 
-const rotate = new Map<string, number>();
-/** The event's next loaded clip (the browser build's sampleRotate). */
+/** The event's next clip. */
 export function sfx(event: SfxEvent): void {
-  const ready = (byEvent.get(event) ?? []).filter((n) => clips.has(n));
-  if (!ready.length) return;
-  const i = (rotate.get(event) ?? 0) % ready.length;
-  rotate.set(event, i + 1);
-  const name = ready[i]!;
-  const bus: Bus = event === "select" ? "interface" : "effects";
-  try { playClip(clips.get(name)!, { bus, gain: LEVEL.effects }); }
+  try { banks.get(event)?.play(); }
   catch { /* the mixer is full this frame: skip it */ }
 }
 
@@ -55,22 +62,25 @@ export function sfx(event: SfxEvent): void {
 const RATE = 22050;
 const LOOP_S = 4;
 /** C4 and E4 sines at 0.08 and 0.10, each tuned to whole cycles in the loop so it repeats seamlessly. */
-function padClip(): AudioClip {
-  const n = LOOP_S * RATE;
-  const out = new Float32Array(n);
-  for (const [f, gain] of [[261.63, 0.08], [329.63, 0.1]] as const) {
-    const cycles = Math.round(f * LOOP_S);
-    for (let i = 0; i < n; i++) out[i]! += Math.sin((2 * Math.PI * cycles * i) / n) * gain;
+async function renderPad(): Promise<AudioClip> {
+  const off = new OfflineAudioContext(1, LOOP_S * RATE, RATE);
+  for (const [f, level] of [[261.63, 0.08], [329.63, 0.1]] as const) {
+    const osc = off.createOscillator();
+    osc.frequency.value = Math.round(f * LOOP_S) / LOOP_S;
+    const gain = off.createGain();
+    gain.gain.value = level;
+    osc.connect(gain).connect(off.destination);
+    osc.start();
   }
-  return createClip([out], RATE);
+  const r = await off.startRendering();
+  return createClip(r);
 }
 let pad: AudioClip | null = null;
 let padSound: Sound | null = null;
 
-/** Each frame: the pad rendered (a frame of its own), then, once the mixer runs, started. */
+/** Each frame: once the pad is rendered and the mixer runs, starts it. */
 export function update(): void {
-  if (!pad) { try { pad = padClip(); } catch (e) { console.warn(`audio: ${String(e)}`); } return; }
-  if (!padSound && context.state === "running") {
+  if (pad && !padSound && context.state === "running") {
     try { padSound = playClip(pad, { bus: "music", gain: 0.0001, loop: true }); padSound.fade(LEVEL.music, 1.5); }
     catch { padSound = null; }
   }

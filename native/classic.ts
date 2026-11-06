@@ -2,11 +2,11 @@
 // rules engine, the content (themes, palettes, the Journey, lessons, the
 // daily, challenges), the session controller (command dispatch with
 // idempotent ids, undo, hints, AI scheduling, the turn timer, snapshots), the
-// save model, and the string tables (js/*.js), evaluated as classic scripts
+// save model (js/*.js), evaluated as classic scripts
 // so their globals are this module's exports.
 import { loadClassic } from "starhermit:script";
 
-for (const f of ["js/rules.js", "js/content.js", "js/session.js", "js/store.js", "js/strings.js", "js/i18n.js", "js/platform-strings.js"]) loadClassic(f);
+for (const f of ["js/rules.js", "js/content.js", "js/session.js", "js/store.js"]) loadClassic(f);
 
 // -- The shapes this client reads -------------------------------------------------
 export type ColorId = "ember" | "tide" | "leaf" | "sol";
@@ -96,23 +96,10 @@ interface StoreApi {
   GAME_SETTING_KEYS: string[]; BROWSER_SETTING_KEYS: string[]; DEFAULT_SETTINGS: GameSettings; PALETTES: string[];
   checkSetting(key: string, v: unknown): unknown;
 }
-interface I18nApi {
-  T(key: string, vars?: Record<string, string | number> | null): string;
-  setLocale(tag: string): string;
-  readonly lang: string;
-  locales: string[];
-}
-interface PlatformStringsApi {
-  platformStrings(lang: string): Record<string, string>;
-  fmtPlatform(s: string, vars?: Record<string, string | number>): string;
-}
-
 const g = globalThis as unknown as {
-  CERules: RulesApi; CEContent: ContentApi; CESession: SessionApi; CEStore: StoreApi; CEI18N: I18nApi; PlatformStrings: PlatformStringsApi;
+  CERules: RulesApi; CEContent: ContentApi; CESession: SessionApi; CEStore: StoreApi;
 };
 export const Rules = g.CERules;
 export const Content = g.CEContent;
 export const Sessions = g.CESession;
 export const Store = g.CEStore;
-export const I18n = g.CEI18N;
-export const PlatformStrings = g.PlatformStrings;

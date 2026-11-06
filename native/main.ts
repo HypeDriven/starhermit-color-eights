@@ -26,7 +26,7 @@ import {
 } from "./classic.ts";
 import * as audio from "./audio.ts";
 import { sfx } from "./audio.ts";
-import { tr, N, pt } from "./i18n.ts";
+import { tr, N } from "./i18n.ts";
 import * as platform from "./platform.ts";
 import { lookFor } from "./quality.ts";
 import * as render from "./render.ts";
@@ -36,7 +36,6 @@ import { initStyles, setDetailed } from "./style.ts";
 export type Mode = "practice" | "journey" | "daily" | "challenge" | "learn";
 export type ScreenName = "title" | "practice" | "journey" | "challenges" | "learn" | "game" | "results";
 export type OverlayName = "stage" | "pause" | "settings" | "lesson";
-export interface Toast { text: () => string; until: number }
 export interface ModeCtx { stage?: Stage; lesson?: Lesson; challenge?: Challenge; daily?: Daily }
 export interface ResultsInfo { st: State; humanWon: boolean; journeyMet: boolean | null }
 
@@ -56,8 +55,7 @@ export const app = {
   /** The practice table's choices, kept while the setup screen is open. */
   practice: { players: 2, level: "medium", undo: true },
   results: null as ResultsInfo | null,
-  lb: null as { state: "lbPosting" | "lbRank" | "lbPosted" | "lbNotPosted"; rank?: number | null } | null,
-  toast: null as Toast | null,
+  lb: null as { state: "leaderboardPosting" | "leaderboardRank" | "leaderboardPosted" | "leaderboardNotPosted"; rank?: number | null } | null,
   hint: null as { cardId: string; until: number } | null,
   signedOut: false,
 };
@@ -83,10 +81,11 @@ const AI_NAMES = ["Vex", "Mira", "Tallo"];
 // ------------------------------------------------------------------ helpers
 export function progress(): ReturnType<typeof platform.progress> { return platform.progress(); }
 export function announce(text: string): void { if (text) ui.announce(text.slice(0, 500), { politeness: "polite" }); }
-/** A toast (3.5 s); `text` re-reads in the current language. */
-export function toast(text: () => string): void {
-  app.toast = { text, until: now() + 3.5 };
-  announce(text());
+/** A toast (3.5 s), one at a time, 20 px above the bottom (the stack's margin is 16). */
+let shownToast: ui.Toast | null = null;
+export function toast(text: string): void {
+  shownToast?.dismiss();
+  shownToast = ui.toast!(text, { duration: 3.5, style: "toast", dismissible: false, position: "bottom", offset: 4 });
 }
 /** The colour-vision palette's colour of a card (wilds are grey). */
 export function cardHex(card: Pick<Card, "color"> | null | undefined): string {
@@ -481,11 +480,11 @@ function resultsScreen(info: ResultsInfo): void {
   app.lb = null;
   // StarHermit high-score board: a won ranked round's points (not Practice or Learn).
   if (info.humanWon && mode !== "learn" && mode !== "practice" && platform.signedIn()) {
-    const line = { state: "lbPosting" as const };
+    const line = { state: "leaderboardPosting" as const };
     app.lb = line;
     void platform.postLeaderboard(info.st.scores?.total ?? 0).then((r) => {
       if (app.lb !== line) return;
-      app.lb = { state: !r.posted ? "lbNotPosted" : r.rank ? "lbRank" : "lbPosted", rank: r.rank };
+      app.lb = { state: !r.posted ? "leaderboardNotPosted" : r.rank ? "leaderboardRank" : "leaderboardPosted", rank: r.rank };
     });
   }
   showScreen("results", "btn-play-again");
@@ -509,7 +508,7 @@ export async function copyInvite(): Promise<void> {
   const link = platform.inviteLink();
   let ok = false;
   if (link) { try { clipboard.writeText(link); ok = true; } catch { ok = false; } }
-  toast(() => (ok ? pt("inviteCopied") : pt("inviteFailed")));
+  toast(tr(ok ? "starhermit.inviteCopied" : "starhermit.inviteFailed"));
 }
 export function signIn(): void { void requestSignIn().catch(() => undefined); }
 
@@ -555,7 +554,7 @@ onPreferencesChange((p) => render.setReducedMotion(p.reducedMotion));
 platform.onSettingsChange(() => { if (session) render.sync(session.state, cardHex); });
 onSessionEnded(() => {
   app.signedOut = true;
-  toast(() => pt("signedOut"));
+  toast(tr("starhermit.signedOut"));
 });
 onPlayerChange((p) => { if (p) app.signedOut = false; });
 onSuspend(() => {
@@ -585,7 +584,6 @@ onUpdate((dt) => {
   applyLook();
   audio.update();
   const t0 = now();
-  if (app.toast && app.toast.until < t0) app.toast = null;
   if (app.hint && t0 > app.hint.until) app.hint = null;
 });
 onRender(() => {

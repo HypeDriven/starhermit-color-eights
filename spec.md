@@ -19,15 +19,15 @@
 | `native/glyphs.ts` | The suit and kind symbols (◆ ≈ ♣ ☀ ★ ⊘ ⇄) as drawn shapes, for the overlay and the card-face canvases. |
 | `native/quality.ts` | The look per graphics level: engine effects from `levelSettings()`, the browser build's art and budgets by quality tier. |
 | `native/style.ts` | Registers `assets/ui-style.json` (theme, tokens, styles); Surface detail's panels per level. |
-| `native/audio.ts` | One-shots from `sfx/manifest.json` on the runtime's buses, the C4 + E4 pad rendered into a seamless loop. |
+| `native/audio.ts` | One-shots from `sfx/manifest.json` on the runtime's buses, sound banks per event, the C4 + E4 pad rendered offline into a seamless loop. |
 | `native/platform.ts` | The save (`saves`), the game's options (`settings`), the browser build's foreign cloud save and legacy settings migration, the player, invite link, score posting through `score-script.js`, the platform clock. |
-| `native/i18n.ts` | Locale from the runtime's interface language; `tr()`, `N()`, the platform strings. |
+| `native/i18n.ts` | Locale from the runtime's interface language; `tr()`, `N()` over the engine's `strings`; account lines are its `starhermit.*` keys. |
 | `native/classic.ts` | Loads the classic scripts below (`loadClassic`) and types what the client reads. |
 | `js/rules.js` | `CERules`: pure deterministic engine — deck, legality, command application, scoring, AI, serialization, replay. No DOM, no Date, no Math.random. |
 | `js/content.js` | `CEContent`: 5 themes, 4 color-vision palettes, 40 Journey stages, 7 lessons, daily generator, 5 challenges, offline validators. |
 | `js/session.js` | `CESession`: command dispatch with idempotent ids, undo stack, hint, AI scheduling, turn timer, snapshots, pause/resume; timers and clock injected (the client passes fixed-step timers). |
 | `js/store.js` | `CEStore`: the pure save model — the save document, progress merge, the browser build's cloud-save reader, the game's options and their checks. |
-| `js/i18n.js`, `js/strings.js`, `js/platform-strings.js` | Nine-locale tables (English keys) and the lookup `CEI18N`; the StarHermit lines. |
+| `assets/strings.json` | Nine-locale tables (English keys), read by the engine's `strings`. |
 | `tools/ui-style.css` → `assets/ui-style.json` | The class-based style sheet, converted with `starhermit css` (`npm run css`). |
 | `tools/package-web.mjs`, `tools/css.mjs`, `tools/gen-play.mjs`, `tools/browser-play.mjs` | Packaging, CSS conversion, the generated Journey play script, the headless-Chrome play of the web package. |
 | `assets/` | `key-art.webp` (title), `results-win.webp`, `results-lose.webp`, `ui-style.json`. |
@@ -213,7 +213,7 @@ All clips: MOSS-SoundEffect v2.0, 48 kHz mono Opus 96 kbps, loudness-normalized 
 
 Nine locales ship: **en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it-IT**. The locale is the runtime's interface language (`preferences().language`: the player's choice in Options › Language, else the StarHermit account's preferred language, else the device's), mapped to the nearest shipped locale (es-MX → es-419, en-AU → en-GB, fr → fr-FR) and given to `ui.setLanguage`; a change shows on the next frame (every string is looked up as it is drawn), the round untouched. The runtime's Options replaced the game's own Language selector.
 
-- **Strings.** English source strings are the keys; `js/strings.js` holds the tables (es-419, de-DE, fr-FR, pt-BR, it-IT in full; en-GB derived with British spelling; es-ES and fr-CA list only their differences, e.g. es-ES *Cambio de sentido*, fr-CA *pointage*). Every string the client draws or announces goes through `tr()`: menus, practice setup, journey and challenge lists, the stage dialog and goals, lessons, the table (turn label, color chip, Draw pile, discard and card names, unplayable reasons), hints, pause and settings, results with the score breakdown, achievements and all announcements. Content stays English and is translated at display time: stage names and intros, lessons and their hints, challenges, and card names — suits Ember/Tide/Leaf/Sol and kinds are localized ("Brasa 7", "Salto Brasa", de "Glut-Stopp"). StarHermit lines (sign in, invite, toasts, the leaderboard line) come from `js/platform-strings.js`. "Color Eights", "StarHermit" and the opponents' names stay as they are.
+- **Strings.** English source strings are the keys; `assets/strings.json` holds the tables (es-419, de-DE, fr-FR, pt-BR, it-IT in full; en-GB derived with British spelling; es-ES and fr-CA list only their differences, e.g. es-ES *Cambio de sentido*, fr-CA *pointage*). Every string the client draws or announces goes through `tr()`: menus, practice setup, journey and challenge lists, the stage dialog and goals, lessons, the table (turn label, color chip, Draw pile, discard and card names, unplayable reasons), hints, pause and settings, results with the score breakdown, achievements and all announcements. Content stays English and is translated at display time: stage names and intros, lessons and their hints, challenges, and card names — suits Ember/Tide/Leaf/Sol and kinds are localized ("Brasa 7", "Salto Brasa", de "Glut-Stopp"). StarHermit lines (sign in, invite, toasts, the leaderboard line) come from `js/platform-strings.js`. "Color Eights", "StarHermit" and the opponents' names stay as they are.
 - **Expansion.** Buttons wrap their labels; card labels wrap and shrink to fit; German card kinds use the short forms *Stopp* and *Wende*.
 
 ## 11. Accessibility
