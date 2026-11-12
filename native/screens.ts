@@ -1,3 +1,7 @@
+import { localizedStyle as __l10nStyle } from "./l10n/font.ts";
+import { localizedDrawOptions as __l10nDrawOptions } from "./l10n/font.ts";
+// localization-runtime:attached
+import { openLocalizedOptions as __l10nOptions } from "./l10n/menu.ts";
 // The browser build's DOM layer (js/app.js screens over css/style.css) as
 // starhermit:ui, built every frame over the lounge (render.ts): the title
 // with its key art, account line and menu; the practice setup; the Journey
@@ -13,7 +17,22 @@
 // key art, no results art) and very short (≤ 480 px tall: tighter table).
 // The cards, piles, chip and chooser are drawn by hand (Surface detail adds
 // the sheen, bevel, lattice back and paper edges on the detailed levels).
-import { frame, openMenu } from "starhermit:engine";
+// The browser build's DOM layer (js/app.js screens over css/style.css) as
+// starhermit:ui, built every frame over the lounge (render.ts): the title
+// with its key art, account line and menu; the practice setup; the Journey
+// grid and its stage intro; Challenges; Learn; the table (header with the
+// mode's title and Pause, the lesson banner, the turn label, the colour chip
+// and the opponents' counts, the draw pile and the discard top, the hand of
+// cards — playable ones lifted and ringed, the rest dimmed, the hinted one
+// outlined in gold — and the action row); the results with their art, goal
+// line, score breakdown and leaderboard line; the dialogs (stage intro,
+// pause, settings, the mandatory colour chooser, lesson complete) and the
+// toast. The browser's clamp() sizes and media queries are computed from
+// the window's logical size: narrow (< 720 px), short (≤ 560 px tall: smaller
+// key art, no results art) and very short (≤ 480 px tall: tighter table).
+// The cards, piles, chip and chooser are drawn by hand (Surface detail adds
+// the sheen, bevel, lattice back and paper edges on the detailed levels).
+import { frame } from "starhermit:engine";
 import { bindingLabel } from "starhermit:input";
 import * as draw from "starhermit:draw";
 import * as ui from "starhermit:ui";
@@ -62,7 +81,7 @@ function button(b: Btn, width: number | null = null): void {
       if (b.done) checkMark(16, style.includes("btn-primary") ? "#1c0d08" : "#ffffff");
     }, { spacing: 8, align: "center" });
   }
-  if (ui.style(...style, s).id(b.id).button(b.text + (b.done ? " ✓" : ""), opts)) { sfx("select"); b.act(); }
+  if (ui.style(...__l10nStyle(style), __l10nStyle(s)).id(b.id).button(b.text + (b.done ? " ✓" : ""), opts)) { sfx("select"); b.act(); }
 }
 /** Text up to `width` wide: one label when it fits, else a paragraph. */
 function para(text: string, width: number, cls: string, id?: string, center = false, size?: number): void {
@@ -70,7 +89,7 @@ function para(text: string, width: number, cls: string, id?: string, center = fa
   const styles: (string | ui.Style)[] = [cls];
   if (center) styles.push({ text: { align: "center" } });
   if (size) styles.push({ text: { size } });
-  let u = ui.style(...styles);
+  let u = ui.style(...__l10nStyle(styles));
   if (id) u = u.id(id);
   if (ui.measureText(text, { style: styles }).width / ui.preferences().scale <= width) u.label(text);
   else u.paragraph(text, width);
@@ -258,7 +277,7 @@ function journeyScreen_(L: Layout): void {
 }
 function stageButton(st: Stage, text: string, done: boolean, style: (string | ui.Style)[], width: number): void {
   const inner = width - 32 - (done ? 22 : 0);
-  if (ui.style(...style, { width }).id(`stage-${st.index}`).button(text + (done ? " ✓" : ""), {
+  if (ui.style(...__l10nStyle(style), __l10nStyle({ width })).id(`stage-${st.index}`).button(text + (done ? " ✓" : ""), {
     content: () => ui.row(`stage-${st.index}-face`, () => {
       if (textWidth(text, style, "button") > inner) ui.paragraph(text, inner); else ui.label(text);
       if (done) checkMark(14, "#ffffff");
@@ -298,7 +317,7 @@ function wrapWords(text: string, max: number, size: number): string[] {
   let cur = "";
   for (const word of text.split(/\s+/).filter(Boolean)) {
     const next = cur ? `${cur} ${word}` : word;
-    if (cur && draw.measureText(next, { size, weight: "700" }).width > max) { lines.push(cur); cur = word; }
+    if (cur && draw.measureText(next, __l10nDrawOptions({ size, weight: "700" })).width > max) { lines.push(cur); cur = word; }
     else cur = next;
   }
   if (cur) lines.push(cur);
@@ -309,7 +328,7 @@ function cardText(x: number, y: number, w: number, h: number, glyph: GlyphName |
   // Smaller type where the longest word or the whole block would not fit (short landscape, long names).
   let size = size0;
   const fits = (sz: number): boolean => {
-    const longest = Math.max(...label.split(/\s+/).map((wd) => draw.measureText(wd, { size: sz, weight: "700" }).width));
+    const longest = Math.max(...label.split(/\s+/).map((wd) => draw.measureText(wd, __l10nDrawOptions({ size: sz, weight: "700" })).width));
     const n = wrapWords(label, w - 6, sz).length;
     return longest <= w - 4 && n * sz * 1.15 + (glyph ? sz * 1.15 : 0) <= h - 4;
   };
@@ -317,7 +336,7 @@ function cardText(x: number, y: number, w: number, h: number, glyph: GlyphName |
   const ink = alpha("#ffffff", a), shade = alpha("#000000", 0.66 * a);
   const g = glyph ? size * 0.5 : 0;
   const lh = size * 1.15;
-  const firstWidth = (s: string): number => draw.measureText(s, { size, weight: "700" }).width;
+  const firstWidth = (s: string): number => draw.measureText(s, __l10nDrawOptions({ size, weight: "700" })).width;
   let lines = wrapWords(label, w - 6, size);
   // Inline (the discard top): the glyph leads the first line when it fits.
   const lead = inline && glyph && lines.length === 1 && firstWidth(lines[0]!) + g * 2.6 <= w - 6;
@@ -338,7 +357,7 @@ function cardText(x: number, y: number, w: number, h: number, glyph: GlyphName |
       drawGlyph(glyph!, gx, ty + lh / 2, g, ink);
       cx = gx + g * 1.6 + firstWidth(line) / 2;
     }
-    draw.text(line, cx, ty + (lh - size) / 2, { size, weight: "700", color: ink, align: "center", shadow: { color: shade, x: 0, y: 1 } });
+    draw.text(line, cx, ty + (lh - size) / 2, __l10nDrawOptions({ size, weight: "700", color: ink, align: "center", shadow: { color: shade, x: 0, y: 1 } }));
     ty += lh;
   }
 }
@@ -436,7 +455,7 @@ function gameScreen(L: Layout): void {
       const titleW = L.lw - 28 - textWidth(tr("Pause"), ["btn"], "button") - 40;
       para(modeTitle(), titleW, "game-title", "game-title", false, clamp(20, 3 * vw, 30));
       ui.spacer();
-      if (ui.style("btn", { text: { size: bodySize } }).id("btn-pause").button(tr("Pause"))) pauseGame();
+      if (ui.style(__l10nStyle("btn"), __l10nStyle({ text: { size: bodySize } })).id("btn-pause").button(tr("Pause"))) pauseGame();
     }, { width: L.lw - 28, align: "center", spacing: 8 });
   }, { width: L.lw, padding: { top: L.veryShort ? 6 : 14, start: 14, end: 14 } });
   const headerH = hr.height / L.sc;
@@ -454,7 +473,7 @@ function gameScreen(L: Layout): void {
       // lesson banner, turn label, colour chip, opponents
       add(ui.column("table-info", () => {
         if (mode === "learn" && modeCtx?.lesson) para(tr(modeCtx.lesson.text), Math.min(L.lw - 26, 620), "lesson-banner", "lesson-banner", true, clamp(14, 2.2 * vw, 18));
-        ui.style("turn-label", { text: { size: clamp(15, 2.4 * vw, 20) } }).id("turn-label").label(turnText());
+        ui.style(__l10nStyle("turn-label"), __l10nStyle({ text: { size: clamp(15, 2.4 * vw, 20) } })).id("turn-label").label(turnText());
         ui.row("color-chip", () => {
           const dot = Math.round(bodySize * 1.6);
           const c = st.currentColor;
@@ -467,9 +486,9 @@ function gameScreen(L: Layout): void {
               drawGlyph(glyphOf({ color: c }), cx, cy, rad * 0.55, "#00000088");
             },
           });
-          ui.style("chip-text", { text: { size: clamp(14, 2.2 * vw, 18) } }).id("color-chip-text").label(colorLabel(c) + (st.pendingDraw > 0 ? " · " + tr("draw {n} pending", { n: st.pendingDraw }) : ""));
+          ui.style(__l10nStyle("chip-text"), __l10nStyle({ text: { size: clamp(14, 2.2 * vw, 18) } })).id("color-chip-text").label(colorLabel(c) + (st.pendingDraw > 0 ? " · " + tr("draw {n} pending", { n: st.pendingDraw }) : ""));
         }, { spacing: 7, align: "center" });
-        ui.style("draw-count", { text: { size: clamp(14, 2 * vw, 17) } }).id("opponents").label(st.players.slice(1).map((p) => `${p.name}: ${p.hand.length}`).join(" · "));
+        ui.style(__l10nStyle("draw-count"), __l10nStyle({ text: { size: clamp(14, 2 * vw, 17) } })).id("opponents").label(st.players.slice(1).map((p) => `${p.name}: ${p.hand.length}`).join(" · "));
       }, { align: "center", spacing: L.veryShort ? 2 : 5, width: L.lw }));
 
       // the draw pile and the discard top
@@ -510,7 +529,7 @@ function gameScreen(L: Layout): void {
       if (s.canUndo()) acts.push({ id: "btn-undo", text: tr("Undo") + keyHint("undo"), act: doUndo });
       if (mode === "learn" && modeCtx?.lesson) { const ls = modeCtx.lesson; acts.push({ id: "btn-restart-lesson", text: tr("Restart lesson"), act: () => startLesson(ls) }); }
       add(ui.row("action-row", () => {
-        for (const a of acts) if (ui.style("btn", { text: { size: bodySize } }).id(a.id).button(a.text, { disabled: !live })) { sfx("select"); a.act(); }
+        for (const a of acts) if (ui.style(__l10nStyle("btn"), __l10nStyle({ text: { size: bodySize } })).id(a.id).button(a.text, { disabled: !live })) { sfx("select"); a.act(); }
       }, { spacing: 8, align: "center", padding: { bottom: L.veryShort ? 6 : 16 } }));
     }, { width: L.lw, align: "center", justify: "space-between", spacing: L.veryShort ? 6 : 10, ...(scroll ? {} : { height: availH }), padding: { top: 6 } });
     // The column's own height: its children and their spacing (it is the window's height when it fits).
@@ -619,7 +638,7 @@ function overlays(L: Layout): void {
         }, { spacing: 8, align: "center" });
         ui.column("options-note", () => {
           para(tr("Sound volumes, graphics quality, the language, controls, reduced motion, high contrast and text size are in the StarHermit Options (F1)."), w, "note", "options-note");
-          button({ id: "btn-open-options", text: tr("Open Options"), act: () => openMenu() });
+          button({ id: "btn-open-options", text: tr("Open Options"), act: () => __l10nOptions() });
         }, { spacing: 8, width: w, style: "settings-row" });
         button({ id: "btn-settings-close", text: tr("Close"), style: PRIMARY(), act: closeOverlay }, w);
       });

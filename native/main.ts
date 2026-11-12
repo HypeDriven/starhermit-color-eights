@@ -1,3 +1,4 @@
+import { withLanguageRender as __l10nRender } from "./l10n/menu.ts";
 // Color Eights on the StarHermit engine: the entry module (starhermit.txt
 // engine.entry), played natively by the StarHermit client and in browsers by
 // the engine's web runtime. The rules, content, session controller and save
@@ -586,9 +587,13 @@ onUpdate((dt) => {
   const t0 = now();
   if (app.hint && t0 > app.hint.until) app.hint = null;
 });
-onRender(() => {
+onRender(__l10nRender(() => {
   const f = frame();
   render.resize(f.width, f.height, f.width / ui.preferences().scale);
   drawScreens();
   render.update(frameDt);
-});
+}));
+
+// localization-runtime:menu
+import { installLanguageMenu as __installLanguageMenu } from "./l10n/menu.ts";
+__installLanguageMenu(false);

@@ -34,3 +34,7 @@ engine.gamepad.pause=Start
 engine.gamepad.draw=West
 engine.gamepad.hint=North
 engine.gamepad.undo=Select
+
+# Game language (saved per player); Automatic follows the account/device.
+control.localization=F2 | Language
+engine.group.localization=Interface

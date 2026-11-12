@@ -1,3 +1,5 @@
+// localization-runtime:attached
+import { localizedCanvasFont as __l10nCanvasFont } from "./l10n/font.ts";
 // The lamp-lit lounge on starhermit:scene, as the browser build's
 // js/render.js drew it behind its DOM layer: the round felt table inside a
 // lacquered wood rim under a pendant-lamp spotlight whose pool fades into a
@@ -126,7 +128,7 @@ function backTexture(): Texture {
     g.restore();
     g.fillStyle = "#241c2c"; g.beginPath(); g.ellipse(w / 2, h / 2, 30, 38, 0, 0, PI * 2); g.fill();
     g.strokeStyle = "#ffcf4d"; g.lineWidth = 2.5; g.stroke();
-    g.fillStyle = "#ffcf4d"; g.font = "bold 44px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = "#ffcf4d"; g.font = __l10nCanvasFont("bold 44px sans-serif"); g.textAlign = "center"; g.textBaseline = "middle";
     g.fillText("8", w / 2, h / 2 + 2);
   });
   return backTex;
@@ -145,7 +147,7 @@ const KIND_MARK: Record<string, Mark> = { skip: { glyph: "skip" }, reverse: { gl
 function markOf(card: Card): Mark | null { return card.kind === "number" ? { text: String(card.rank) } : KIND_MARK[card.kind] ?? null; }
 function suitOf(card: Card): GlyphName { return card.color ? SUIT[R.COLOR_INFO[card.color].shape] ?? "star" : "star"; }
 function drawMark(g: OffscreenCanvasRenderingContext2D, m: Mark, x: number, y: number, size: number, color: string): void {
-  if ("text" in m) { g.fillStyle = color; g.font = `bold ${size}px sans-serif`; g.fillText(m.text, x, y); }
+  if ("text" in m) { g.fillStyle = color; g.font = __l10nCanvasFont(`bold ${size}px sans-serif`); g.fillText(m.text, x, y); }
   else canvasGlyph(g, m.glyph, x, y, size * 0.42, color);
 }
 const faceTexCache = new Map<string, Texture>();
