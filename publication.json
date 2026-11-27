@@ -12,7 +12,7 @@
     "metadataSource": "starhermit.txt",
     "createdAt": "2026-09-01T07:00:59.058717+00:00",
     "coverArtSource": "manifest",
-    "coverArtUpdatedAt": "2026-11-26T20:07:38.666739+00:00",
+    "coverArtUpdatedAt": "2026-11-27T17:04:45.551081+00:00",
     "submittedByUserId": "2712e04e-461b-4d23-81ae-e40b429128a8",
     "submittedByUsername": "starhermit",
     "hosting": {
@@ -22,9 +22,9 @@
       "pinnedCommitSha": null,
       "deployedCommitSha": null,
       "deployError": null,
-      "deployedAt": "2026-11-26T20:07:38.654196+00:00",
+      "deployedAt": "2026-11-27T17:04:45.539674+00:00",
       "externalLaunchUrl": null,
-      "engineVersion": "1.51.0",
+      "engineVersion": "1.53.0",
       "deployWarning": null
     },
     "description": "Match colors or ranks, play action cards, and race to empty your hand in a lively shedding card game.",
@@ -36,19 +36,19 @@
     "links": [],
     "isDisabled": false
   },
-  "publishedAt": "2026-11-26T20:07:38.762Z",
-  "sourceCommit": "c8a3b7606d8ab274ca51726a8f0b7c1c931a0aac",
-  "bytesReceived": 2247148,
-  "archiveSha256": "f975f1da064e19e917e4eb2ac26d3afc7a512ab14ad39a58e762b488e8ab2520",
+  "publishedAt": "2026-11-27T17:04:45.705Z",
+  "sourceCommit": "ccfb4c38ec85a93a8fd00bb912ddfb27df65c6db",
+  "bytesReceived": 2247140,
+  "archiveSha256": "56fe7ab409532593bdcaf0c3403bc71591eb9dc443cc97f7dfc9c2bbc69131ff",
   "indexSha256": "2c9d814271a1e7d0a627e3b1d4a5abf595a5c8b79ae5c797de255ca56173c831",
   "result": {
     "clientPublished": true,
     "serverImageLoaded": false,
     "imageDigest": null,
-    "bytesReceived": 2247148,
+    "bytesReceived": 2247140,
     "mode": "replace",
     "filesRemoved": 0,
-    "engineVersion": "1.51.0",
+    "engineVersion": "1.53.0",
     "deployWarning": null
   },
   "liveVerification": {
