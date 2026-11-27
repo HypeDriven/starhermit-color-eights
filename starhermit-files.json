@@ -23,7 +23,7 @@
     "favicon.png.ktx2": {"sha256": "d9d0cbd192df5795c506b3676fa6c736fbcdec0167142d190a93db7afc7af54e", "size": 87776},
     "icon.png": {"sha256": "e63c261c9d6d335ca75718466363ba4c65d9ef8f34abb6763d944f87c79911e9", "size": 9138},
     "icon.png.ktx2": {"sha256": "d9d0cbd192df5795c506b3676fa6c736fbcdec0167142d190a93db7afc7af54e", "size": 87776},
-    "index.html": {"sha256": "3870e61ba96026df29ee8645dc4a533b005f0189c65eece06f690963eaf73b1f", "size": 1783},
+    "index.html": {"sha256": "cc1186a877a2d0ae6e8eb638285997d8f56d229912fc08c0e92bed14e8ceea80", "size": 1783},
     "js/content.js": {"sha256": "2c06598fe5e97ecadd96f39305185553f5103dbc08899376fc7a32295591635a", "size": 22056},
     "js/rules.js": {"sha256": "191e2bc7217b28d365da69c1e3462c23b7c223754ae1990d8c5555df1fa82490", "size": 28281},
     "js/session.js": {"sha256": "d8a444d17d60acac18662dde604159c2ded39a184f2e04835a404ce53bf8f8b0", "size": 8745},
@@ -41,7 +41,7 @@
     "native/render.ts": {"sha256": "d45a2f235d56f4aac0dd7601470dbddd8e02e47dd4fcb68481a8560a8b6efc2a", "size": 30839},
     "native/screens.ts": {"sha256": "3dee03fdaf89400021d5bfb0eea0d4ca460bd557721238888fc2767c2486a0f8", "size": 40717},
     "native/style.ts": {"sha256": "61770b38b4c6a40b499d29c0e26f72b157d78c8e392a46dce1d754c3ff8111c8", "size": 2577},
-    "publication.json": {"sha256": "4e5bd24d55eed935d767ae296752b17c11fd9646165619e2094a53ee3fbedde5", "size": 4134},
+    "publication.json": {"sha256": "91288c1ff3763a62d6c43de9a18a24cd0359f1b7f81d1e404c19c6a9e08b9fe1", "size": 4134},
     "score-script.js": {"sha256": "762eda4323fbe38bb29abf1117ec1d637253e288024f9aa8fcb5735b81ef2902", "size": 2488},
     "sfx/achievement-warm-chime.opus": {"sha256": "f8d692d958a9e8df10f1f9310729e381cdf4b63f2aada8031eb8ec49eb5cffe5", "size": 39512},
     "sfx/action-whoosh-shimmer.opus": {"sha256": "7bd97adf3fed2d4733e8c34d4ff5997411cd68976d33dbcb8cae6ed5d5f492c1", "size": 22443},
@@ -70,7 +70,7 @@
     "sfx/win-applause-brief.opus": {"sha256": "a4bcb6b259d3a01d02f9aceadcf1a77f9c70edd000f6961498a06263a8a8bf2f", "size": 43634},
     "sfx/win-chime-arpeggio.opus": {"sha256": "a79585b2569c54a850af88c239fc228d9bb5e1705528d488e60a7ed438b47d2e", "size": 27315},
     "sfx/win-fanfare-brass.opus": {"sha256": "bc640e05fcc64c6f4966760dba59af8c519ccd3780a1dd15df3af02df4548c15", "size": 41673},
-    "starhermit.txt": {"sha256": "733a6ba9cbcb7e3e2e9d0496742c91f5adddd3a4d7e1dd9a77a4e615638d06be", "size": 1657}
+    "starhermit.txt": {"sha256": "057468f3fe7fd2a9073598b554f1d6de42fbe160123f94d1d0488831b8e67fa9", "size": 1657}
   },
   "excluded": ["README.md", "coverart.png", "node_modules/", "package-lock.json", "package.json", "server.js", "spec.md", "tests/", "tools/", "tsconfig.json"],
   "format": 1
