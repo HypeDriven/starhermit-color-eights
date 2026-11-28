@@ -49,7 +49,6 @@ export function loadSfx(): void {
       if (list.length) banks.set(event, new SoundBank({ clips: list, order: "sequence", bus: event === "select" ? "interface" : "effects", gain: LEVEL.effects }));
     });
   }
-  renderPad().then((c) => { pad = c; }, (e: unknown) => console.warn(`audio: ${String(e)}`));
 }
 
 /** The event's next clip. */
@@ -79,7 +78,17 @@ let pad: AudioClip | null = null;
 let padSound: Sound | null = null;
 
 /** Each frame: once the pad is rendered and the mixer runs, starts it. */
+let __bedsStarted = false;
+function startBeds(): void {
+  if (__bedsStarted) return;
+  __bedsStarted = true;
+  void (async () => {
+    renderPad().then((c) => { pad = c; }, (e: unknown) => console.warn(`audio: ${String(e)}`));
+  })();
+}
+
 export function update(): void {
+  startBeds();
   if (pad && !padSound && context.state === "running") {
     try { padSound = playClip(pad, { bus: "music", gain: 0.0001, loop: true }); padSound.fade(LEVEL.music, 1.5); }
     catch { padSound = null; }
